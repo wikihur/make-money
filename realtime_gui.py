@@ -225,6 +225,7 @@ class StockWindow(QMainWindow):
             else:
                 codeOrNot = realType
 
+            #print(realType)
             if realType == '주식체결' :
 
                 for fid in sorted(RealType.REALTYPE[realType].keys()):
@@ -240,7 +241,7 @@ class StockWindow(QMainWindow):
                     '체결시간(HHMMSS)', '체결가', '전일대비', '등락율', '최우선매도호가', '최우선매수호가',
                     '체결량', '누적체결량', '누적거래대금', '시가', '고가', '저가', '전일대비기호',
                     '전일거래량대비(계약,주)', '거래대금증감', '전일거래량대비(비율)', '거래회전율',
-                    '거래비용', '체결강도', '시가총액(억)', '장구분', 'KO접근도'], index=kiwoom.ohlcv['날짜'])
+                    '거래비용', '체결강도', '시가총액(억)', '장구분', 'KO접근도'], index=w_kiwoom.ohlcv['날짜'])
 
                 self.df.to_sql(codeOrNot, self.conn, if_exists='append')
 
@@ -268,7 +269,7 @@ class StockWindow(QMainWindow):
                 and isinstance(fid, int)):
             raise ParameterTypeError()
 
-        value = self.dynamicCall("GetCommRealData(QString, int)", code, fid)
+        value = self.kiwoom_api.dynamicCall("GetCommRealData(QString, int)", code, fid)
 
         return value
 
