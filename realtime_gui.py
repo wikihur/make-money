@@ -542,6 +542,15 @@ class StockWindow(QMainWindow):
         self.realdata_cnt = 0
         self.buy_cnt = 5
 
+        # 최저가 저장을 위한
+        self.lowest_price = {}
+
+        # 자동매매 Flag (코드별)
+        self.code_auto_flag = {}
+
+        # 체결강도 차이를 위해
+        self.before_stock_data = {}
+
     def item_click(self, item):
         self.code_edit.setText(item.text())
 
@@ -784,8 +793,85 @@ class StockWindow(QMainWindow):
             except AttributeError:
                 pass
 
-    def testAutoBuy(self, stock_code, price, amount):
-        order_type = 1
+    def checkCondition(self, data_list):
+
+        if (len(data_list) == 0 or len(data_list) < 23):
+            print("empty")
+            return
+
+        buy_cnt = 10
+        # Buy
+        stock_code = data_list[0]
+        current_price = abs(int(data_list[1]))
+        low_price = abs(int(data_list[9]))
+        first_sell_price = abs(int(data_list[13]))
+        first_buy_price = abs(int(data_list[14]))
+        strong = abs(float(data_list[19]))
+
+        if (not self.before_stock_data.get(stock_code)):
+            self.before_stock_data[stock_code] = data_list
+
+        before_strong = abs(float(self.before_stock_data[stock_code][19]))
+        step_price = 0
+
+        if (low_price < 1000):
+            step_price = 1
+        elif (low_price < 5000):
+            step_price = 5
+        elif (low_price < 10000):
+            step_price = 10
+        elif (low_price < 50000):
+            step_price = 50
+        elif (low_price < 100000):
+            step_price = 100
+        elif (low_price < 500000):
+            step_price = 500
+        elif (low_price < 1000000):
+            step_price = 1000
+
+        # 체결가 = 저가 일 때,
+        if (current_price == low_price):
+
+            # 최저가 값이 없거나, 기존에 최저가 보다 낮은 저가가 나왔을 때 최저가 변경
+            if (not self.lowest_price.get(stock_code)):
+                print("Change lowest price - empty")
+                print(data_list)
+                self.lowest_price[stock_code] = low_price
+                return
+
+            if (self.lowest_price[stock_code] > low_price):
+                print("Change lowest price")
+                print(data_list)
+                self.code_auto_flag[stock_code] = True
+                self.lowest_price[stock_code] = low_price
+
+        if ((self.code_auto_flag.get(stock_code)) and self.code_auto_flag[stock_code]):
+            if ((self.lowest_price[stock_code] == low_price) and
+                    (self.lowest_price[stock_code] + step_price == first_buy_price)):
+                self.code_auto_flag[stock_code] = False
+
+                if ((strong - before_strong) > 0):
+                    print("Buy!!!!!!" + data_list)
+                    self.testAutoBuy(stock_code, 1, str(first_buy_price), buy_cnt)
+                    print("[Before]!!!!!!" + self.before_stock_data[stock_code])
+                    print("[Currnet]!!!!!" + data_list)
+
+        self.before_stock_data[stock_code] = data_list
+
+        #self.opw00018Data['stocks'].append(stock)
+        print(self.opw00018Data)
+
+        # Sell
+        for stock_list in self.opw00018Data['stocks']:
+            if (stock_list[0] == "A" + stock_code):
+                if ((int(stock_list[3]) * 1.02) < current_price ):
+                    self.testAutoBuy(stock_code, 2, str(first_sell_price), int(stock_list[2]))
+                    print("[Sell]!!!!!" + stock_code + ", " + str(first_sell_price) + "," + stock_list[2])
+                # count  #stock_list[2]
+                # 매입가 #stock_list[3]
+
+    def testAutoBuy(self, stock_code, order_type, price, amount):
+        #order_type = 1
         type = {1: "신규매수", 2: "신규매도", 3: "매수취소", 4: "매도취소", 5: "매수정정", 6: "매도정정"}
 
         self.log_edit.append("종목유형:" + type[order_type] + ", " + stock_code + "," + price + "," + amount)
@@ -842,7 +928,9 @@ class StockWindow(QMainWindow):
 
                 """
                 TODO : Insert Rule Checker 
-                """
+              """
+                self.checkCondition(data)
+
                 #if( code == "005690"):
                 #    print("autobuy before")
                 #    if( self.buy_cnt != 0 ):
@@ -852,7 +940,8 @@ class StockWindow(QMainWindow):
 
 
                 self.ohlcv['날짜'].append(str(datetime.today()))
-                print(data)
+                #print(data)
+                print(".")
 
                 self.df = pd.DataFrame(self.ohlcv, columns=[
                     '체결시간(HHMMSS)', '체결가', '전일대비', '등락율', '최우선매도호가', '최우선매수호가',
@@ -1185,9 +1274,9 @@ class StockWindow(QMainWindow):
 
             # 보유 종목 정보
             cnt = self.getRepeatCnt(trCode, requestName)
-            keyList = ["종목명", "보유수량", "매입가", "현재가", "평가손익", "수익률(%)"]
+            keyList = [ "종목번호", "종목명", "보유수량", "매입가", "현재가", "평가손익", "수익률(%)"]
 
-            stock_str_list = " 종목명\t보유수량\t매입가\t현재가\t평가손익\t수익률(%)"
+            stock_str_list = " 종목번호\t종목명\t보유수량\t매입가\t현재가\t평가손익\t수익률(%)"
             self.account_info_edit.clear()
             self.account_info_edit.append(stock_str_list)
 
@@ -1197,12 +1286,10 @@ class StockWindow(QMainWindow):
                 stock_info_list = ""
                 for key in keyList:
                     value = self.commGetData(trCode, "", requestName, i, key)
-
                     if key.startswith("수익률"):
                         value = self.changeFormat(value, 2)
-                    elif key != "종목명":
+                    elif key != "종목명" and key != "종목번호":
                         value = self.changeFormat(value)
-
                     stock_info_list = stock_info_list + value + "\t"
                     stock.append(value)
 
@@ -1211,8 +1298,7 @@ class StockWindow(QMainWindow):
                 self.account_info_edit.append(stock_info_list)
                 self.opw00018Data['stocks'].append(stock)
 
-            print(self.opw00018Data)
-
+            #print(self.opw00018Data)
             self.account_info_date_label.setText(str(datetime.today()))
 
         elif requestName == "계좌별주문체결내역상세요청":
