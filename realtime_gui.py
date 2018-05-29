@@ -278,7 +278,7 @@ class RealType(object):
             9203: '주문번호',
             9205: '관리자사번',
             9001: '종목코드',
-            912: '주문분류(jj:주식주문)',
+            912: '주문업무분류(jj:주식주문)',
             913: '주문상태(10:원주문, 11:정정주문, 12:취소주문, 20:주문확인, 21:정정확인, 22:취소확인, 90,92:주문거부)',
             302: '종목명',
             900: '주문수량',
@@ -506,7 +506,6 @@ class StockWindow(QMainWindow):
         btn_get_deposit.move(win_width / 2 + 130, win_height/2 - 100)
         btn_get_deposit.clicked.connect(self.btn_get_deposit_clicked)
 
-
         account_info_label = QLabel('계좌잔고: ', self)
         account_info_label.move(base_x, win_height/3 + 50)
 
@@ -525,28 +524,34 @@ class StockWindow(QMainWindow):
         self.transaction_info_edit = QTextEdit(self)
         self.transaction_info_edit.setGeometry(base_x, win_height/2 + 130, win_width - 20, win_height / 6)
 
+        self.auto_trade_checkbox = QCheckBox("자동 매매", self)
+        self.auto_trade_checkbox.move(win_width - 220, base_y)
+        self.auto_trade_checkbox.resize(100, 30)
+        self.auto_trade_checkbox.setChecked(True)
+        self.auto_trade_checkbox.stateChanged.connect(self.checkBoxState)
+
         self.createKiwoomInstance()
         self.setSignalSlots()
 
-        self.ohlcv = {'날짜': [], '체결시간(HHMMSS)': [], '체결가': [], '전일대비': [], '등락율': [],
-                      '최우선매도호가': [], '최우선매수호가': [], '체결량': [], '누적체결량': [],
-                      '누적거래대금': [], '시가': [], '고가': [], '저가': [], '전일대비기호': [],
-                      '전일거래량대비(계약,주)': [], '거래대금증감': [], '전일거래량대비(비율)': [],
-                      '거래회전율': [], '거래비용': [], '체결강도': [], '시가총액(억)': [],
-                      '장구분': [], 'KO접근도': []}
+        #self.ohlcv = {'날짜': [], '체결시간(HHMMSS)': [], '체결가': [], '전일대비': [], '등락율': [],
+        #              '최우선매도호가': [], '최우선매수호가': [], '체결량': [], '누적체결량': [],
+        #              '누적거래대금': [], '시가': [], '고가': [], '저가': [], '전일대비기호': [],
+        #              '전일거래량대비(계약,주)': [], '거래대금증감': [], '전일거래량대비(비율)': [],
+        #              '거래회전율': [], '거래비용': [], '체결강도': [], '시가총액(억)': [],
+        #              '장구분': [], 'KO접근도': []}
 
         database = "c:/kiwoom_db/market_price.db"
         self.conn = sqlite3.connect(database)
         self.log_edit.append("DB 접속 완료")
-
-        self.realdata_cnt = 0
-        self.buy_cnt = 5
 
         # 최저가 저장을 위한
         self.lowest_price = {}
 
         # 자동매매 Flag (코드별)
         self.code_auto_flag = {}
+
+        # 자동매매 Flag
+        self.auto_trade_flag = True
 
         # 체결강도 차이를 위해
         self.before_stock_data = {}
@@ -560,9 +565,16 @@ class StockWindow(QMainWindow):
         # kosdaq list
         self.kosdaq_code_list = []
 
+    def checkBoxState(self):
+        if self.auto_trade_checkbox.isChecked() == True:
+            self.auto_trade_flag = True
+        else:
+            self.auto_trade_flag = False
+
     def item_click(self, item):
         self.code_edit.setText(item.text())
 
+    # 실시간 데이터 받기 함수
     def btn_real_start_clicked(self):
 
         # 네이처셀 : 007390
@@ -573,7 +585,7 @@ class StockWindow(QMainWindow):
         # 파미셀 : 005690
         # 삼성전자 : 005930
         # LGD : 034220
-
+        # 펄어비스 : 263750
 
         code = self.code_edit.text()
         newornot = ""
@@ -588,14 +600,14 @@ class StockWindow(QMainWindow):
             else:
                 #처음 등록 할 때
                 newornot = "0"
-            #print("등록정보: " + newornot)
+
             self.setRealReg(self.screenNo, code, "10;228", newornot)
             self.realtimeList.append(code)
 
-        #print(self.realtimeList)
         self.listWidget.clear()
         self.listWidget.addItems(self.realtimeList)
 
+    # 실시간 데이터 받기 중지 함수
     def btn_real_stop_clicked(self):
         code = self.code_edit.text()
 
@@ -605,15 +617,16 @@ class StockWindow(QMainWindow):
         else:
             print("등록된 Code 가 아닙니다.")
 
-        #print(self.realtimeList)
         self.listWidget.clear()
         self.listWidget.addItems(self.realtimeList)
 
+    # 로그인 함수
     def btn_login_clicked(self):
         self.commConnect()
         self.btn_query_account_clicked()
         self.getCodeList()
 
+    # 종목 코드 받기 함수
     def getCodeList(self):
         self.log_edit.append("종목 코드 받기")
         ret = self.kiwoom_api.dynamicCall("GetCodeListByMarket(QString)", ["0"])
@@ -622,7 +635,7 @@ class StockWindow(QMainWindow):
         ret = self.kiwoom_api.dynamicCall("GetCodeListByMarket(QString)", ["10"])
         self.kosdaq_code_list = ret.split(';')
 
-
+    # 예수금 조회 함수
     def btn_get_deposit_clicked(self):
         self.log_edit.append("예수금조회")
 
@@ -638,19 +651,18 @@ class StockWindow(QMainWindow):
 
         self.commRqData("예수금상세현황요청", "opw00001", 0, "0101")
 
+    # 매수 테스트 함수
     def btn_test_order_buy_clicked(self):
-        #print("매수 주문")
         self.order_type = 1
         self.test_order()
 
+    # 매도 테스트 함수
     def btn_test_order_sell_clicked(self):
-        #print("매도 주문")
         self.order_type = 2
         self.test_order()
 
+    # 매수/매도 테스트 함수
     def test_order(self):
-        #print("주문 접수 함수")
-
         if not self.getConnectState():
             print("로그인 후 사용하세요")
             self.log_edit.append("로그인 후 사용하세요.")
@@ -670,30 +682,9 @@ class StockWindow(QMainWindow):
         self.log_edit.append("종목유형:" + type[order_type] + ", " + stock_code + "," + price + "," + amount)
         self.sendOrder("testorder", "1002", self.account_num, order_type, stock_code, int(amount), int(price), "00", "")
 
-        """
-                주식 주문 메서드
-
-                sendOrder() 메소드 실행시,
-                OnReceiveMsg, OnReceiveTrData, OnReceiveChejanData 이벤트가 발생한다.
-                이 중, 주문에 대한 결과 데이터를 얻기 위해서는 OnReceiveChejanData 이벤트를 통해서 처리한다.
-                OnReceiveTrData 이벤트를 통해서는 주문번호를 얻을 수 있는데, 주문후 이 이벤트에서 주문번호가 ''공백으로 전달되면,
-                주문접수 실패를 의미한다.
-
-                :param requestName: string - 주문 요청명(사용자 정의)
-                :param screenNo: string - 화면번호(4자리)
-                :param accountNo: string - 계좌번호(10자리)
-                :param orderType: int - 주문유형(1: 신규매수, 2: 신규매도, 3: 매수취소, 4: 매도취소, 5: 매수정정, 6: 매도정정)
-                :param code: string - 종목코드
-                :param qty: int - 주문수량
-                :param price: int - 주문단가
-                :param hogaType: string - 거래구분(00: 지정가, 03: 시장가, 05: 조건부지정가, 06: 최유리지정가, 그외에는 api 문서참조)
-                :param originOrderNo: string - 원주문번호(신규주문에는 공백, 정정및 취소주문시 원주문번호르 입력합니다.)
-                """
-
+    # 계좌 잔고 함수
     def btn_query_account_clicked(self):
-        #print("계좌잔고 조회")
         self.log_edit.append("계좌잔고 조회")
-
 
         if not self.getConnectState():
             print("로그인 후 사용하세요")
@@ -707,9 +698,8 @@ class StockWindow(QMainWindow):
 
         self.commRqData("계좌평가잔고내역요청", "opw00018", 0, "0101")
 
-
+    # 주문 체결 조회 함수
     def btn_query_order_clicked(self):
-        #print("주문체결 조회")
         self.log_edit.append("주문체결 조회")
 
         today = datetime.now().strftime('%Y%m%d')
@@ -740,6 +730,7 @@ class StockWindow(QMainWindow):
 
         self.commRqData("계좌별주문체결내역상세요청", "opw00007", 0, "0101")
 
+    # Create Kiwoom Instance
     def createKiwoomInstance(self):
         self.kiwoom_api = QAxWidget("KHOPENAPI.KHOpenAPICtrl.1")
         #self.setControl("KHOPENAPI.KHOpenAPICtrl.1")
@@ -826,8 +817,7 @@ class StockWindow(QMainWindow):
         # 파미셀 : 005690
         # 삼성전자 : 005930
         # LGD : 034220
-        # perabis : 263750
-
+        # 펄어비스 : 263750
 
         if (len(data_list) == 0 or len(data_list) < 23):
             print("empty")
@@ -840,8 +830,8 @@ class StockWindow(QMainWindow):
 
         buy_cnt = "10"
 
-        # 2% 수익 목표
-        profit_rate = 1.02
+        # 1% 수익 목표
+        profit_rate = 1.01
 
         # 체결강도 차이가 0.1 이상일 때 주문
         diff_strong = 0.1
@@ -876,14 +866,10 @@ class StockWindow(QMainWindow):
         elif (low_price < 100000):
             step_price = 100
         elif (low_price < 500000):
-            # for kosdaq
-            #step_price = 100
-
             if(stock_code in self.kospi_code_list):
                 step_price = 500
             else:
                 step_price = 100
-
         elif (low_price < 1000000):
             if (stock_code in self.kospi_code_list):
                 step_price = 1000
@@ -893,7 +879,6 @@ class StockWindow(QMainWindow):
         # 최저가 값이 없을 때 현재 저가 를 저장
         if (not self.lowest_price.get(stock_code)):
             print("Change Lowest price, because empty list")
-            #print(data_list)
             self.lowest_price[stock_code] = low_price
             self.code_auto_flag[stock_code] = True
             self.log_edit.append("자동 매수 Check Flag Enable :" + stock_code)
@@ -905,69 +890,78 @@ class StockWindow(QMainWindow):
             # 기존에 최저가 보다 낮은 저가가 나왔을 때 최저가 변경
             if (self.lowest_price[stock_code] > low_price):
                 print("Change lowest price : " + str(low_price) )
-                #print(data_list)
                 self.code_auto_flag[stock_code] = True
-                #print(self.code_auto_flag[stock_code])
                 self.log_edit.append("자동 매수 Check Flag Enable :" + stock_code)
                 self.lowest_price[stock_code] = low_price
 
         # 자동 매수 Check Flag 가 Enable 되어있으면 최우선 매수 호가가 한단계 위이고, 체결강도 차이가 0보다 클 때
         # 매수 함
-        if (self.code_auto_flag.get(stock_code)):
+        if (self.code_auto_flag.get(stock_code) and self.auto_trade_flag):
             print("lowest_price: " + str(self.lowest_price[stock_code]) + ", step: " + str(step_price) +
-                  ", first_buy_price" + str(first_buy_price))
+                  ", first_buy_price: " + str(first_buy_price))
 
+            # 최우선 매수 호가가 최저가 보다 한단계 위일 때
             if ((self.lowest_price[stock_code] == low_price) and
                     (self.lowest_price[stock_code] + step_price == first_buy_price)):
-                # 매수호가가
+
                 print("Check strong difference")
                 print("Strong: " + str(strong) + ", Before_strong: " + str(before_strong) + " = " +
-                      str(strong-before_strong))
+                      str(strong - before_strong))
 
+                # 체결 강도 차이가 diff_strong 보다 클 때
                 if ((strong - before_strong) > diff_strong):
                     print("Buy!!!!!!")
                     self.testAutoBuy(stock_code, 1, str(first_buy_price), buy_cnt)
 
                     self.code_auto_flag[stock_code] = False
                     self.log_edit.append("자동 매수 Check Flag Disable :" + stock_code)
-                    print("[Before]!!!!!!" + self.before_stock_data[stock_code])
-                    print("[Currnet]!!!!!" + data_list)
+                    print("[Before]!!!!!!")
+                    print(self.before_stock_data[stock_code])
+                    print("[Currnet]!!!!!")
+                    print(data_list)
 
         self.before_stock_data[stock_code] = data_list
-
-        #self.opw00018Data['stocks'].append(stock)
-        #print(self.opw00018Data)
         print(self.lowest_price)
 
         # Sell
-        for stock_list in self.opw00018Data['stocks']:
+        if(self.auto_trade_flag) :
 
-            # 잔고 조회 후에 stock 이 존재하면
-            if (stock_list[0] == ("A" + stock_code)):
+            for stock_list in self.opw00018Data['stocks']:
 
-                # 매입가 대비 2% 가 오른 현재 가격이면 매도 주문
-                if ((int(stock_list[3]) * profit_rate) < current_price ):
-                    # 기존에 매도 주문 내역이 없으면 바로 매도 주문
-                    if(not self.sell_order_list.get(stock_code)):
-                        self.testAutoBuy(stock_code, 2, str(first_sell_price), stock_list[2])
-                        self.sell_order_list[str("A" + stock_code)] = int(stock_list[2])
-                        print("[Sell]!!!!!" + stock_code + ", " + str(first_sell_price) + "," + stock_list[2])
-                        print("sell_order_list: " + self.sell_order_list)
-                    # 기존에 매도 주문 내역이 있고, 매도 주문을 낼 수 있는 잔량이 있으면 매도 주문
-                    elif ( (int(stock_list[2]) - self.sell_order_list[stock_code]) > 0):
-                        self.testAutoBuy(stock_code, 2, str(first_sell_price), stock_list[2])
-                        self.sell_order_list[str("A" + stock_code)] = self.sell_order_list[str("A" + stock_code)] + int(stock_list[2])
-                        print("[Sell]!!!!!" + stock_code + ", " + str(first_sell_price) + "," + stock_list[2])
-                        print("sell_order_list: " + self.sell_order_list)
-                    # 매도 할 수 있는 잔고가 없을 때
-                    else:
-                        print("매도 할 수 있는 잔고가 없습니다.")
+                # 잔고 조회 후에 stock 이 존재하면
+                if (stock_list[0] == ("A" + stock_code)):
+
+                    # 매입가 대비 2% 가 오른 현재 가격이면 매도 주문
+                    if ((int(stock_list[3]) * profit_rate) < current_price ):
+                        self.log_edit.append("매입가 대비 2% 상승: " + stock_code)
+
+                        # 기존에 매도 주문 내역이 없으면 바로 매도 주문
+                        if(not self.sell_order_list.get(stock_code)):
+                            self.testAutoBuy(stock_code, 2, str(first_sell_price), stock_list[2])
+                            self.sell_order_list[str("A" + stock_code)] = int(stock_list[2])
+                            self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(first_sell_price) +
+                                                 ", 수량: " + stock_list[2])
+                            print("[Sell]!!!!!" + stock_code + ", " + str(first_sell_price) + "," + stock_list[2])
+                            print( self.sell_order_list)
+
+                        # 기존에 매도 주문 내역이 있고, 매도 주문을 낼 수 있는 잔량이 있으면 매도 주문
+                        elif ( (int(stock_list[2]) - self.sell_order_list[stock_code]) > 0):
+                            self.testAutoBuy(stock_code, 2, str(first_sell_price), stock_list[2])
+                            self.sell_order_list[str("A" + stock_code)] = self.sell_order_list[str("A" + stock_code)] + int(stock_list[2])
+                            self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(first_sell_price) +
+                                                 ", 수량: " + stock_list[2])
+                            print("[Sell]!!!!!" + stock_code + ", " + str(first_sell_price) + "," + stock_list[2])
+                            print(self.sell_order_list)
+
+                        # 매도 할 수 있는 잔고가 없을 때
+                        else:
+                            print("매도 할 수 있는 잔고가 없습니다.")
+                            self.log_edit.append("매도 잔고 없음: " + stock_code)
 
                 # count  #stock_list[2]
                 # 매입가 #stock_list[3]
 
     def testAutoBuy(self, stock_code, order_type, price, amount):
-        #order_type = 1
         type = {1: "신규매수", 2: "신규매도", 3: "매수취소", 4: "매도취소", 5: "매수정정", 6: "매도정정"}
 
         self.log_edit.append(str(datetime.today()) + " 주문유형:" + type[order_type] + ", " + stock_code + "," + price + "," + amount)
@@ -989,8 +983,6 @@ class StockWindow(QMainWindow):
 
         try:
             #print("receiveRealData:({})".format(realType))
-            #self.log.debug("[receiveRealData]")
-            #self.log.debug("({})".format(realType))
 
             if realType not in RealType.REALTYPE:
                 return
@@ -1006,12 +998,16 @@ class StockWindow(QMainWindow):
             #print(realType)
             if realType == '주식체결' :
 
-                #current_price = 0
-                #priority_buy = 0
+                ohlcv = {'날짜': [], '체결시간(HHMMSS)': [], '체결가': [], '전일대비': [], '등락율': [],
+                              '최우선매도호가': [], '최우선매수호가': [], '체결량': [], '누적체결량': [],
+                              '누적거래대금': [], '시가': [], '고가': [], '저가': [], '전일대비기호': [],
+                              '전일거래량대비(계약,주)': [], '거래대금증감': [], '전일거래량대비(비율)': [],
+                              '거래회전율': [], '거래비용': [], '체결강도': [], '시가총액(억)': [],
+                              '장구분': [], 'KO접근도': []}
 
                 for fid in sorted(RealType.REALTYPE[realType].keys()):
                     value = self.getCommRealData(codeOrNot, fid)
-                    self.ohlcv[RealType.REALTYPE[realType][fid]].append(value)
+                    ohlcv[RealType.REALTYPE[realType][fid]].append(value)
 
                     data.append(value)
                     # if(RealType.REALTYPE[realType][fid] == "체결가"):
@@ -1019,45 +1015,35 @@ class StockWindow(QMainWindow):
                     # elif (RealType.REALTYPE[realType][fid] == "최우선매수호가"):
                     #    priority_buy = value
 
-                # print("fid:%d, value:%s" % (fid, value))
-
-
-                """
-                TODO : Insert Rule Checker 
-              """
+                # Rule Check for automation trade
                 self.checkCondition(data)
 
-                #if( code == "005690"):
-                #    print("autobuy before")
-                #    if( self.buy_cnt != 0 ):
-                #        print("autobuy")
-                #        self.buy_cnt = self.buy_cnt - 1
-                #        self.testAutoBuy(code, priority_buy, "1")
-
-
-                self.ohlcv['날짜'].append(str(datetime.today()))
                 print(data)
-                #print(data[0])
 
-                self.df = pd.DataFrame(self.ohlcv, columns=[
+                ohlcv['날짜'].append(str(datetime.today()))
+                self.df = pd.DataFrame(ohlcv, columns=[
                     '체결시간(HHMMSS)', '체결가', '전일대비', '등락율', '최우선매도호가', '최우선매수호가',
                     '체결량', '누적체결량', '누적거래대금', '시가', '고가', '저가', '전일대비기호',
                     '전일거래량대비(계약,주)', '거래대금증감', '전일거래량대비(비율)', '거래회전율',
-                    '거래비용', '체결강도', '시가총액(억)', '장구분', 'KO접근도'], index=w_kiwoom.ohlcv['날짜'])
+                    '거래비용', '체결강도', '시가총액(억)', '장구분', 'KO접근도'], index=ohlcv['날짜'])
 
                 self.df.to_sql(codeOrNot, self.conn, if_exists='append')
 
                 for fid in sorted(RealType.REALTYPE[realType].keys()):
-                    del self.ohlcv[RealType.REALTYPE[realType][fid]][:]
-                del self.ohlcv['날짜'][:]
+                    del ohlcv[RealType.REALTYPE[realType][fid]][:]
+                del ohlcv['날짜'][:]
 
+            elif realType == "잔고" :
+                value_list = []
+                for fid in sorted(RealType.REALTYPE[realType].keys()):
+                    value = self.getCommRealData(codeOrNot, fid)
 
-
-            #self.log.debug(data)
+                    value_list.append(value)
+                print("!!!!! 잔고 !!!!!")
+                print(value_list)
 
         except Exception as e:
             print(e)
-            #self.log.error('{}'.format(e))
 
     def getCommRealData(self, code, fid):
         """
@@ -1258,7 +1244,6 @@ class StockWindow(QMainWindow):
         #self.requestLoop = QEventLoop()
         #self.requestLoop.exec_()
 
-
     def receiveMsg(self, screenNo, requestName, trCode, msg):
         """
         수신 메시지 이벤트
@@ -1320,16 +1305,10 @@ class StockWindow(QMainWindow):
         :param recordName: string
         :param inquiry: string - 조회('0': 남은 데이터 없음, '2': 남은 데이터 있음)
         """
-
         print("receiveTrData 실행: ", screenNo, requestName, trCode, recordName, inquiry)
 
         # 주문번호와 주문루프
         self.orderNo = self.commGetData(trCode, "", requestName, 0, "주문번호")
-
-        #try:
-        #    self.orderLoop.exit()
-        #except AttributeError:
-        #    pass
 
         self.inquiry = inquiry
 
@@ -1342,7 +1321,7 @@ class StockWindow(QMainWindow):
 
             demand_amount = self.commGetData(trCode, "", requestName, 0, "주문가능금액")
             demand_amount = self.changeFormat(demand_amount)
-            #self.opw00001Data = deposit
+
             print("주문가능금액: " + demand_amount)
             self.log_edit.append(" 주문가능금액: " + demand_amount)
 
@@ -1365,7 +1344,6 @@ class StockWindow(QMainWindow):
 
                 accountEvaluation.append(value)
 
-            #print(accountEvaluation)
             self.opw00018Data['accountEvaluation'] = accountEvaluation
 
             # 보유 종목 정보
@@ -1389,12 +1367,9 @@ class StockWindow(QMainWindow):
                     stock_info_list = stock_info_list + value + "\t"
                     stock.append(value)
 
-                #print(stock)
-                #print(stock_str_list)
                 self.account_info_edit.append(stock_info_list)
                 self.opw00018Data['stocks'].append(stock)
 
-            #print(self.opw00018Data)
             self.account_info_date_label.setText(str(datetime.today()))
 
         elif requestName == "계좌별주문체결내역상세요청":
@@ -1409,9 +1384,9 @@ class StockWindow(QMainWindow):
                 cnt = int(value)
 
             # 체결 정보
-            keyList = ["주문번호", "종목번호", "매매구분", "주문수량", "주문단가", "확인수량", "체결수량", "체결단가", "주문잔량"]
+            keyList = ["주문번호", "종목번호", "주문구분", "주문수량", "주문단가", "확인수량", "체결수량", "체결단가", "주문잔량"]
 
-            trans_str_list = " 주문번호\t종목번호\t매매구분\t주문수량\t주문단가\t확인수량\t체결수량\t체결단가\t주문잔량"
+            trans_str_list = " 주문번호\t종목번호\t주문구분\t주문수량\t주문단가\t확인수량\t체결수량\t체결단가\t주문잔량"
             self.transaction_info_edit.clear()
             self.transaction_info_edit.append(trans_str_list)
 
@@ -1422,25 +1397,19 @@ class StockWindow(QMainWindow):
                 trans_info_list = ""
                 for key in keyList:
                     value = self.commGetData(trCode, "", requestName, i, key)
-                    #if key.startswith("수익률"):
-                    #    value = self.changeFormat(value, 2)
-                    if not (key == "주문번호" or key == "종목번호" or key == "매매구분"):
+
+                    if not (key == "주문번호" or key == "종목번호" or key == "주문구분"):
                         value = self.changeFormat(value)
 
                     orderList.append(value)
                     trans_info_list = trans_info_list + value + "\t"
 
                 self.transaction_info_edit.append(trans_info_list)
-                #print(orderList)
+
                 self.opw00007Data['orderList'].append(orderList)
 
             print(self.opw00007Data)
             self.transaction_date_label.setText(str(datetime.today()))
-
-        #try:
-        #    self.requestLoop.exit()
-        #except AttributeError:
-        #    pass
 
     def getChejanData(self, fid):
         """
@@ -1484,10 +1453,13 @@ class StockWindow(QMainWindow):
             #self.getChejanData(911)
 
             # stock code
-            #self.getChejanData(9001)
+            code = self.getChejanData(9001)
+            amount = int(self.getChejanData(911))
 
-            self.sell_order_list[self.getChejanData(9001)] = self.sell_order_list[self.getChejanData(9001)] - int(self.getChejanData(911))
-            print("sell_order_list: " + self.sell_order_list)
+            # 체결된 수량 만큼 sell_order_list 에서 뺌
+            if(self.sell_order_list.get(code)):
+                self.sell_order_list[code] = self.sell_order_list[code] - amount
+                print(self.sell_order_list)
 
         for fid in fids:
             print(FidList.CHEJAN[int(fid)] if int(fid) in FidList.CHEJAN else fid, ": ", self.getChejanData(int(fid)))
@@ -1537,9 +1509,6 @@ class StockWindow(QMainWindow):
         if returnCode != ReturnCode.OP_ERR_NONE:
             raise KiwoomProcessingError("sendOrder(): " + ReturnCode.CAUSE[returnCode])
 
-        # receiveTrData() 에서 루프종료
-        #self.orderLoop = QEventLoop()
-        #self.orderLoop.exec_()
 
 if __name__ == "__main__":
 
