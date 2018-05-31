@@ -425,6 +425,9 @@ class StockWindow(QMainWindow):
         # 주문유형 (1: 신규매수, 2: 신규매도, 3: 매수취소, 4: 매도취소, 5: 매수정정, 6: 매도정정)
         self.order_type = 1
 
+        # 호가 거래구분(00: 지정가, 03: 시장가, 05: 조건부지정가, 06: 최유리지정가, 그외에는 api 문서참조)
+        self.hoga_type = "00"
+
         # Setting Windows
         win_width = 800
         win_height = 650
@@ -494,6 +497,14 @@ class StockWindow(QMainWindow):
         btn_test_order_sell_deposit.move(win_width - 120, win_height / 8 + 40)
         btn_test_order_sell_deposit.clicked.connect(self.btn_test_order_sell_clicked)
 
+        btn_test_order_market_buy = QPushButton("시장가 매수", self)
+        btn_test_order_market_buy.move(win_width - 120, win_height / 8 + 80)
+        btn_test_order_market_buy.clicked.connect(self.btn_test_order_market_buy_clicked)
+
+        btn_test_order_market_sell = QPushButton("시장가 매도", self)
+        btn_test_order_market_sell.move(win_width - 120, win_height / 8 + 120)
+        btn_test_order_market_sell.clicked.connect(self.btn_test_order_market_sell_clicked)
+
         btn_query_account = QPushButton("계좌잔고 조회", self)
         btn_query_account.move(win_width / 3, win_height/2 - 100)
         btn_query_account.clicked.connect(self.btn_query_account_clicked)
@@ -544,6 +555,10 @@ class StockWindow(QMainWindow):
         self.conn = sqlite3.connect(database)
         self.log_edit.append("DB 접속 완료")
 
+        # second data log
+        file_name = str(datetime.now().strftime('%Y%m%d')) + ".txt"
+        self.f = open("C:/kiwoom_db/" + file_name, "a")
+
         # 최저가 저장을 위한
         self.lowest_price = {}
 
@@ -555,6 +570,9 @@ class StockWindow(QMainWindow):
 
         # 체결강도 차이를 위해
         self.before_stock_data = {}
+
+        # 매수호가가 한단계 올라갔을 때 시점의 체결 count 체크를 위한
+        self.trans_cnt = {}
 
         # Sell order list
         self.sell_order_list = {}
@@ -590,6 +608,11 @@ class StockWindow(QMainWindow):
         code = self.code_edit.text()
         newornot = ""
 
+        if not self.getConnectState():
+            print("로그인 후 사용하세요")
+            self.log_edit.append("로그인 후 사용하세요.")
+            return
+
         if code in self.realtimeList:
             print("해당 코드는 이미 등록되어있습니다.")
             return
@@ -610,6 +633,11 @@ class StockWindow(QMainWindow):
     # 실시간 데이터 받기 중지 함수
     def btn_real_stop_clicked(self):
         code = self.code_edit.text()
+
+        if not self.getConnectState():
+            print("로그인 후 사용하세요")
+            self.log_edit.append("로그인 후 사용하세요.")
+            return
 
         if code in self.realtimeList:
             self.setRealRemove(self.screenNo, code)
@@ -661,6 +689,18 @@ class StockWindow(QMainWindow):
         self.order_type = 2
         self.test_order()
 
+    # 시장가 매수 테스트 함수
+    def btn_test_order_market_buy_clicked(self):
+        self.order_type = 1
+        self.hoga_type = "03"
+        self.test_order()
+
+    # 시장가 매도 테스트 함수
+    def btn_test_order_market_sell_clicked(self):
+        self.order_type = 2
+        self.hoga_type = "03"
+        self.test_order()
+
     # 매수/매도 테스트 함수
     def test_order(self):
         if not self.getConnectState():
@@ -673,6 +713,8 @@ class StockWindow(QMainWindow):
         amount = self.amount_edit.text()
         order_type = self.order_type
 
+        hoga_type = self.hoga_type
+
         if(stock_code == "" or price == "" or amount == ""):
             print("종목코드, 가격, 수량을 확인하세요")
             return
@@ -680,7 +722,7 @@ class StockWindow(QMainWindow):
         type = { 1: "신규매수", 2:"신규매도", 3:"매수취소", 4:"매도취소", 5:"매수정정", 6:"매도정정"}
 
         self.log_edit.append("종목유형:" + type[order_type] + ", " + stock_code + "," + price + "," + amount)
-        self.sendOrder("testorder", "1002", self.account_num, order_type, stock_code, int(amount), int(price), "00", "")
+        self.sendOrder("testorder", "1002", self.account_num, order_type, stock_code, int(amount), int(price), hoga_type, "")
 
     # 계좌 잔고 함수
     def btn_query_account_clicked(self):
@@ -836,6 +878,9 @@ class StockWindow(QMainWindow):
         # 체결강도 차이가 0.1 이상일 때 주문
         diff_strong = 0.1
 
+        # 매수 호가가 최저보다 한단계 위 일때 그 전 체결 주문이 100개 이상
+        threshold_cnt = 100
+
         # Buy
         stock_code = data_list[0]
         current_price = abs(int(data_list[1]))
@@ -889,36 +934,53 @@ class StockWindow(QMainWindow):
 
             # 기존에 최저가 보다 낮은 저가가 나왔을 때 최저가 변경
             if (self.lowest_price[stock_code] > low_price):
-                print("Change lowest price : " + str(low_price) )
+                self.f.write("Change lowest price : " + str(low_price) + "\n")
                 self.code_auto_flag[stock_code] = True
                 self.log_edit.append("자동 매수 Check Flag Enable :" + stock_code)
+                self.f.write("자동 매수 Check Flag Enable :" + stock_code + "\n")
                 self.lowest_price[stock_code] = low_price
 
         # 자동 매수 Check Flag 가 Enable 되어있으면 최우선 매수 호가가 한단계 위이고, 체결강도 차이가 0보다 클 때
         # 매수 함
         if (self.code_auto_flag.get(stock_code) and self.auto_trade_flag):
-            print("lowest_price: " + str(self.lowest_price[stock_code]) + ", step: " + str(step_price) +
-                  ", first_buy_price: " + str(first_buy_price))
+
+            # 체결 count 저장
+            if(self.trans_cnt.get(stock_code)):
+                self.trans_cnt[stock_code] = int(self.trans_cnt[stock_code]) + 1
+            else :
+                self.trans_cnt[stock_code] = 1
 
             # 최우선 매수 호가가 최저가 보다 한단계 위일 때
             if ((self.lowest_price[stock_code] == low_price) and
-                    (self.lowest_price[stock_code] + step_price == first_buy_price)):
+                    ((self.lowest_price[stock_code] + step_price) == first_buy_price)):
 
-                print("Check strong difference")
-                print("Strong: " + str(strong) + ", Before_strong: " + str(before_strong) + " = " +
-                      str(strong - before_strong))
+                if(self.trans_cnt.get(stock_code) > threshold_cnt):
+                    self.f.write("Buy[threshold_cnt] :" + stock_code + "\n")
+                    #print("Buy!!!!!!")
+
+                    buy_order_price = 0
+                    if ((first_sell_price - first_buy_price) > step_price):
+                        buy_order_price = first_buy_price + step_price
+                    else:
+                        buy_order_price = first_sell_price
+
+                    self.testAutoBuy(stock_code, 1, str(buy_order_price), buy_cnt)
+
+                    self.log_edit.append("매수 주문: " + stock_code + ", price: " + str(buy_order_price) +
+                                         ",trans_cnt: " + str(self.trans_cnt[stock_code]))
+                    self.log_edit.append("자동 매수 Check Flag Disable :" + stock_code)
+
+                # 초기화
+                self.code_auto_flag[stock_code] = False
+                self.trans_cnt[stock_code] = 0
+
+                #print("Check strong difference")
+                #print("Strong: " + str(strong) + ", Before_strong: " + str(before_strong) + " = " +
+                      #str(strong - before_strong))
 
                 # 체결 강도 차이가 diff_strong 보다 클 때
-                if ((strong - before_strong) > diff_strong):
-                    print("Buy!!!!!!")
-                    self.testAutoBuy(stock_code, 1, str(first_buy_price), buy_cnt)
+                #if ((strong - before_strong) > diff_strong):
 
-                    self.code_auto_flag[stock_code] = False
-                    self.log_edit.append("자동 매수 Check Flag Disable :" + stock_code)
-                    print("[Before]!!!!!!")
-                    print(self.before_stock_data[stock_code])
-                    print("[Currnet]!!!!!")
-                    print(data_list)
 
         self.before_stock_data[stock_code] = data_list
         print(self.lowest_price)
@@ -931,27 +993,36 @@ class StockWindow(QMainWindow):
                 # 잔고 조회 후에 stock 이 존재하면
                 if (stock_list[0] == ("A" + stock_code)):
 
-                    # 매입가 대비 2% 가 오른 현재 가격이면 매도 주문
+                    # 매입가 대비 1% 가 오른 현재 가격이면 매도 주문
                     if ((int(stock_list[3]) * profit_rate) < current_price ):
-                        self.log_edit.append("매입가 대비 2% 상승: " + stock_code)
+                        self.log_edit.append("매입가 대비 1% 상승: " + stock_code)
+                        sell_order_price = 0
+
+                        if ((first_sell_price - first_buy_price) > step_price):
+                            sell_order_price = first_buy_price + step_price
+                        else:
+                            sell_order_price = first_buy_price
 
                         # 기존에 매도 주문 내역이 없으면 바로 매도 주문
                         if(not self.sell_order_list.get(stock_code)):
                             self.testAutoBuy(stock_code, 2, str(first_sell_price), stock_list[2])
                             self.sell_order_list[str("A" + stock_code)] = int(stock_list[2])
-                            self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(first_sell_price) +
+                            self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
                                                  ", 수량: " + stock_list[2])
-                            print("[Sell]!!!!!" + stock_code + ", " + str(first_sell_price) + "," + stock_list[2])
-                            print( self.sell_order_list)
+                            self.f.write("[Sell] :" + stock_code + "\n")
+                            #print("[Sell]!!!!!" + stock_code + ", " + str(sell_order_price) + "," + stock_list[2])
+                            #print( self.sell_order_list)
+                            self.f.write(str(self.sell_order_list) + "\n")
 
                         # 기존에 매도 주문 내역이 있고, 매도 주문을 낼 수 있는 잔량이 있으면 매도 주문
                         elif ( (int(stock_list[2]) - self.sell_order_list[stock_code]) > 0):
                             self.testAutoBuy(stock_code, 2, str(first_sell_price), stock_list[2])
                             self.sell_order_list[str("A" + stock_code)] = self.sell_order_list[str("A" + stock_code)] + int(stock_list[2])
-                            self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(first_sell_price) +
+                            self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
                                                  ", 수량: " + stock_list[2])
-                            print("[Sell]!!!!!" + stock_code + ", " + str(first_sell_price) + "," + stock_list[2])
-                            print(self.sell_order_list)
+                            self.f.write("[Sell] :" + stock_code + "\n")
+                            #print("[Sell]!!!!!" + stock_code + ", " + str(sell_order_price) + "," + stock_list[2])
+                            self.f.write(str(self.sell_order_list) + "\n")
 
                         # 매도 할 수 있는 잔고가 없을 때
                         else:
@@ -1019,6 +1090,7 @@ class StockWindow(QMainWindow):
                 self.checkCondition(data)
 
                 print(data)
+                self.f.write(str(data) + "\n")
 
                 ohlcv['날짜'].append(str(datetime.today()))
                 self.df = pd.DataFrame(ohlcv, columns=[
@@ -1447,7 +1519,6 @@ class StockWindow(QMainWindow):
         print("[ 구분: ", self.getChejanData(913) if '913' in fids else '잔고통보', "]")
 
         if(self.getChejanData(913) == "체결"):
-            self.btn_query_account_clicked()
 
             # accept amount
             #self.getChejanData(911)
@@ -1455,10 +1526,15 @@ class StockWindow(QMainWindow):
             # stock code
             code = self.getChejanData(9001)
             amount = int(self.getChejanData(911))
+            order_num = self.getChejanData(9203)
+
+            self.log_edit.append("체결 통보 : " + code + ", 주문번호: " + order_num)
+            self.btn_query_account_clicked()
 
             # 체결된 수량 만큼 sell_order_list 에서 뺌
             if(self.sell_order_list.get(code)):
                 self.sell_order_list[code] = self.sell_order_list[code] - amount
+                print("Sell Order List!!")
                 print(self.sell_order_list)
 
         for fid in fids:
