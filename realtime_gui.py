@@ -927,6 +927,7 @@ class StockWindow(QMainWindow):
             self.lowest_price[stock_code] = low_price
             self.code_auto_flag[stock_code] = True
             self.log_edit.append("자동 매수 Check Flag Enable :" + stock_code)
+            self.trans_cnt[stock_code] = 0
             return
 
         # 체결가 = 저가 일 때,
@@ -939,6 +940,7 @@ class StockWindow(QMainWindow):
                 self.log_edit.append("자동 매수 Check Flag Enable :" + stock_code)
                 self.f.write("자동 매수 Check Flag Enable :" + stock_code + "\n")
                 self.lowest_price[stock_code] = low_price
+                self.trans_cnt[stock_code] = 0
 
         # 자동 매수 Check Flag 가 Enable 되어있으면 최우선 매수 호가가 한단계 위이고, 체결강도 차이가 0보다 클 때
         # 매수 함
