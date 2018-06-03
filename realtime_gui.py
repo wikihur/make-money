@@ -860,6 +860,12 @@ class StockWindow(QMainWindow):
         # 삼성전자 : 005930
         # LGD : 034220
         # 펄어비스 : 263750
+        # 셀트리온 : 068270
+        # 셀트리온헬스케어 : 091990
+        # 포스코캠텍 : 003670
+        # 카카오 : 035720
+        # 한일네트웍스 : 046110
+        # 위메이드 : 112040
 
         if (len(data_list) == 0 or len(data_list) < 23):
             print("empty")
@@ -925,8 +931,9 @@ class StockWindow(QMainWindow):
         if (not self.lowest_price.get(stock_code)):
             print("Change Lowest price, because empty list")
             self.lowest_price[stock_code] = low_price
+            if(not self.code_auto_flag.get(stock_code)):
+                self.log_edit.append("자동 매수 Check Flag Enable :" + stock_code)
             self.code_auto_flag[stock_code] = True
-            self.log_edit.append("자동 매수 Check Flag Enable :" + stock_code)
             self.trans_cnt[stock_code] = 0
             return
 
@@ -936,9 +943,10 @@ class StockWindow(QMainWindow):
             # 기존에 최저가 보다 낮은 저가가 나왔을 때 최저가 변경
             if (self.lowest_price[stock_code] > low_price):
                 self.f.write("Change lowest price : " + str(low_price) + "\n")
+                if (not self.code_auto_flag.get(stock_code)):
+                    self.log_edit.append("자동 매수 Check Flag Enable :" + stock_code)
                 self.code_auto_flag[stock_code] = True
-                self.log_edit.append("자동 매수 Check Flag Enable :" + stock_code)
-                self.f.write("자동 매수 Check Flag Enable :" + stock_code + "\n")
+                self.f.write("자동 매수 Check Flag Enable[found lowest] :" + stock_code + "\n")
                 self.lowest_price[stock_code] = low_price
                 self.trans_cnt[stock_code] = 0
 
@@ -1006,7 +1014,7 @@ class StockWindow(QMainWindow):
                             sell_order_price = first_buy_price
 
                         # 기존에 매도 주문 내역이 없으면 바로 매도 주문
-                        if(not self.sell_order_list.get(stock_code)):
+                        if(not self.sell_order_list.get(str("A" + stock_code))):
                             self.testAutoBuy(stock_code, 2, str(first_sell_price), stock_list[2])
                             self.sell_order_list[str("A" + stock_code)] = int(stock_list[2])
                             self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
@@ -1017,7 +1025,7 @@ class StockWindow(QMainWindow):
                             self.f.write(str(self.sell_order_list) + "\n")
 
                         # 기존에 매도 주문 내역이 있고, 매도 주문을 낼 수 있는 잔량이 있으면 매도 주문
-                        elif ( (int(stock_list[2]) - self.sell_order_list[stock_code]) > 0):
+                        elif ( (int(stock_list[2]) - self.sell_order_list[str("A" + stock_code)]) > 0):
                             self.testAutoBuy(stock_code, 2, str(first_sell_price), stock_list[2])
                             self.sell_order_list[str("A" + stock_code)] = self.sell_order_list[str("A" + stock_code)] + int(stock_list[2])
                             self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
