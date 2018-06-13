@@ -467,6 +467,10 @@ class StockWindow(QMainWindow):
         btn_real_stop.move(win_width / 3, win_height / 16 + 80)
         btn_real_stop.clicked.connect(self.btn_real_stop_clicked)
 
+        btn_real_start_total = QPushButton("Total 실시간 받기", self)
+        btn_real_start_total.move(win_width / 3, win_height / 16 + 120)
+        btn_real_start_total.clicked.connect(self.btn_total_real_start_clicked)
+
         reged_code = QLabel('등록된코드: ', self)
         reged_code.move(win_width / 3 + 120 , base_y)
 
@@ -596,6 +600,131 @@ class StockWindow(QMainWindow):
 
     def item_click(self, item):
         self.code_edit.setText(item.text())
+
+    def btn_total_real_start_clicked(self):
+
+        # 시총 30위 (우선주 제외)
+        # 06/12 기준
+        """
+            KOSPI
+            삼성전자	005930
+            SK하이닉스	000660
+            셀트리온	068270
+            POSCO	005490
+            현대차	005380
+
+            삼성바이오로직스	207940
+            LG화학	051910
+            KB금융	105560
+            삼성물산	028260
+            NAVER	035420
+
+            신한지주	055550
+            한국전력	015760
+            현대모비스	012330
+            LG생활건강	051900
+            삼성생명	032830
+
+            SK	034730
+            SK이노베이션	096770
+            SK텔레콤	017670
+            아모레퍼시픽	090430
+            삼성에스디에스	018260
+
+            삼성SDI	006400
+            LG전자	066570
+            하나금융지주	086790
+            KT&G	033780
+            LG	003550
+
+            기아차	000270
+            롯데케미칼	011170
+            넷마블	251270
+            S-Oil	010950
+            삼성화재	000810
+
+            KOSDAQ
+
+            셀트리온헬스케어	091990
+            신라젠	215600
+            메디톡스	086900
+            바이로메드	084990
+            나노스	151910
+
+            에이치엘비	028300
+            CJ E&M	130960
+            스튜디오드래곤	253450
+            셀트리온제약	068760
+            포스코켐텍	003670
+
+            펄어비스	263750
+            컴투스	078340
+            코오롱티슈진(Reg.S)	950160
+            카카오M	016170
+            휴젤	145020
+
+            제넥신	095700
+            파라다이스	034230
+            SK머티리얼즈	036490
+            코미팜	041960
+            SKC코오롱PI	178920
+
+            카페24	042000
+            네이처셀	007390
+            원익IPS	240810
+            CJ오쇼핑	035760
+            에스에프에이	056190
+
+            엘앤에프	066970
+            고영	098460
+            솔브레인	036830
+            미래컴퍼니	049950
+            서울반도체	046890
+
+        """
+        code_list = ["005930", "000660", "068270", "005490", "005380",
+                     "207940", "051910", "105560", "028260", "035420",
+                     "055550", "015760", "012330", "051900", "032830",
+                     "034730", "096770", "017670", "090430", "018260",
+                     "006400", "066570", "086790", "033780", "003550",
+                     "000270", "011170", "251270", "010950", "000810",
+
+                     "091990", "215600", "086900", "084990", "151910",
+                     "028300", "130960", "253450", "068760", "003670",
+                     "263750", "078340", "950160", "016170", "145020",
+                     "095700", "034230", "036490", "041960", "178920",
+                     "042000", "007390", "240810", "035760", "056190",
+                     "066970", "098460", "036830", "049950", "046890" ]
+
+        for f in code_list:
+            self.set_real_start(f)
+
+
+    def set_real_start(self, code):
+        #code = self.code_edit.text()
+        newornot = ""
+
+        if not self.getConnectState():
+            print("로그인 후 사용하세요")
+            self.log_edit.append("로그인 후 사용하세요.")
+            return
+
+        if code in self.realtimeList:
+            print("해당 코드는 이미 등록되어있습니다.")
+            return
+        else:
+            # 이미 등록되어있는 게 있을 때
+            if len(self.realtimeList) > 0:
+                newornot = "1"
+            else:
+                # 처음 등록 할 때
+                newornot = "0"
+
+            self.setRealReg(self.screenNo, code, "10;228", newornot)
+            self.realtimeList.append(code)
+
+        self.listWidget.clear()
+        self.listWidget.addItems(self.realtimeList)
 
     # 실시간 데이터 받기 함수
     def btn_real_start_clicked(self):
@@ -975,14 +1104,20 @@ class StockWindow(QMainWindow):
             else :
                 self.trans_cnt[stock_code] = 1
 
+            # 매수 체결량
             if(trans_amount > 0):
                 self.trans_data[stock_code][0] = self.trans_data[stock_code][0] + trans_amount
             else:
-                self.trans_data[stock_code][1] = self.trans_data[stock_code][1] + trans_amount
+            # 매도 체결량
+                self.trans_data[stock_code][1] = self.trans_data[stock_code][1] + abs(trans_amount)
 
             # 최우선 매수 호가가 최저가 보다 한단계 위일 때
             if ((self.lowest_price[stock_code] == low_price) and
                     ((self.lowest_price[stock_code] + step_price) == first_buy_price)):
+                self.f.write("code: " + stock_code + ", cnt: " + str(self.trans_cnt[stock_code]) + ", trans-data: " +
+                      str(self.trans_data[stock_code][0]/self.trans_data[stock_code][1]) + "\n")
+                self.log_edit.append("code: " + stock_code + ", cnt: " + str(self.trans_cnt[stock_code]) + ", transdata: " +
+                                     str(self.trans_data[stock_code][0]/self.trans_data[stock_code][1]))
 
                 if((self.trans_cnt.get(stock_code) > threshold_cnt) and
                         ( (self.trans_data[stock_code][0] / self.trans_data[stock_code][1]) > threshold_amount )):
@@ -1440,7 +1575,9 @@ class StockWindow(QMainWindow):
             # 계좌 평가 정보
             accountEvaluation = []
             keyList = ["총매입금액", "총평가금액", "총평가손익금액", "총수익률(%)", "추정예탁자산"]
+            account_info_str_list = " 총매입금액\t총평가금액\t총평가손익\t총수익률(%)\t추정예탁자산"
 
+            account_info_list = ""
             for key in keyList:
                 value = self.commGetData(trCode, "", requestName, 0, key)
 
@@ -1449,16 +1586,22 @@ class StockWindow(QMainWindow):
                 else:
                     value = self.changeFormat(value)
 
+                account_info_list += value + "\t"
+
                 accountEvaluation.append(value)
 
             self.opw00018Data['accountEvaluation'] = accountEvaluation
+
+            self.account_info_edit.clear()
+            self.account_info_edit.append(account_info_str_list)
+            self.account_info_edit.append(account_info_list + "\n")
 
             # 보유 종목 정보
             cnt = self.getRepeatCnt(trCode, requestName)
             keyList = [ "종목번호", "종목명", "보유수량", "매입가", "현재가", "평가손익", "수익률(%)"]
 
             stock_str_list = " 종목번호\t종목명\t보유수량\t매입가\t현재가\t평가손익\t수익률(%)"
-            self.account_info_edit.clear()
+            #self.account_info_edit.clear()
             self.account_info_edit.append(stock_str_list)
 
             for i in range(cnt):

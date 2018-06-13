@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from __future__ import division
+#from __future__ import division
 import csv
 import sys
 import re
@@ -215,6 +215,13 @@ class StockClass():
                                          str(bull_power))
                     print("자동 매수 Check Flag Disable :" + stock_code)
 
+                    if(self.opw00018Data['stocks']):
+                        print("exist")
+                    else: # empty
+                        self.opw00018Data['stocks'] = ["A" + stock_code, "SIMULATION", buy_cnt, str(buy_order_price)]
+
+                    print(self.opw00018Data['stocks'])
+
                 # 초기화
                 self.code_auto_flag[stock_code] = False
                 self.trans_cnt[stock_code] = 0
@@ -286,15 +293,15 @@ if __name__ == "__main__":
         print(e)
 
 
-    print "Number of arguments: ", len(sys.argv), "arguments"
-    print "Arguments List: ", str(sys.argv)
+    print("Number of arguments: ", len(sys.argv), "arguments")
+    print("Arguments List: ", str(sys.argv))
 
-    filename = "data.csv"
+    filename = "C:/Users/User/Desktop/시세/Data/000660.csv"
 
     if(len(sys.argv) == 2):
         filename = sys.argv[1]
 
-    f = open(filename, "r")
+    f = open(filename, "r", encoding='UTF8')
     rdr = csv.reader(f)
 
     for line in rdr:
