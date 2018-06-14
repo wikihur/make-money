@@ -578,6 +578,9 @@ class StockWindow(QMainWindow):
         # 매수호가가 한단계 올라갔을 때 시점의 체결 count 체크를 위한
         self.trans_cnt = {}
 
+        # 매수세 체크를 위해 Flag 가 시작된 시간 저장을 위한
+        self.check_trans_time = {}
+
         # 체결 count 가 만족할 때 매수/매도 세를 저장하기 위한
         # trans_data[stock_code][0] = 매수체결량
         # trans_data[stock_code][0] = 매도체결량
@@ -691,10 +694,11 @@ class StockWindow(QMainWindow):
 
                      "091990", "215600", "086900", "084990", "151910",
                      "028300", "130960", "253450", "068760", "003670",
-                     "263750", "078340", "950160", "016170", "145020",
-                     "095700", "034230", "036490", "041960", "178920",
-                     "042000", "007390", "240810", "035760", "056190",
-                     "066970", "098460", "036830", "049950", "046890" ]
+                     "263750", "078340", "950160", "016170", "145020"]
+
+                     #"095700", "034230", "036490", "041960", "178920",
+                     #"042000", "007390", "240810", "035760", "056190",
+                     #"066970", "098460", "036830", "049950", "046890" ]
 
         for f in code_list:
             self.set_real_start(f)
@@ -728,16 +732,6 @@ class StockWindow(QMainWindow):
 
     # 실시간 데이터 받기 함수
     def btn_real_start_clicked(self):
-
-        # 네이처셀 : 007390
-        # FSN : 214270
-        # KD : 044180
-        # 광림: 014200
-        # 하이닉스 : 000660
-        # 파미셀 : 005690
-        # 삼성전자 : 005930
-        # LGD : 034220
-        # 펄어비스 : 263750
 
         code = self.code_edit.text()
         newornot = ""
@@ -985,22 +979,6 @@ class StockWindow(QMainWindow):
 
     def checkCondition(self, data_list):
 
-        # 네이처셀 : 007390
-        # FSN : 214270
-        # KD : 044180
-        # 광림: 014200
-        # 하이닉스 : 000660
-        # 파미셀 : 005690
-        # 삼성전자 : 005930
-        # LGD : 034220
-        # 펄어비스 : 263750
-        # 셀트리온 : 068270
-        # 셀트리온헬스케어 : 091990
-        # 포스코캠텍 : 003670
-        # 카카오 : 035720
-        # 한일네트웍스 : 046110
-        # 위메이드 : 112040
-
         if (len(data_list) == 0 or len(data_list) < 23):
             print("empty")
             return
@@ -1024,6 +1002,10 @@ class StockWindow(QMainWindow):
         # 위의 threshold_cnt 를 만족하고 그 구간 체결강도(매수/매도) 가 몇 이상일 때
         threshold_amount = 2
 
+        # Check 를 시작한 시간과 매수하려고 하는 시간 차이가 몇 초 이상일 때
+        threshold_time = 60
+
+
         # Buy
         stock_code = data_list[0]
         current_price = abs(int(data_list[1]))
@@ -1032,6 +1014,7 @@ class StockWindow(QMainWindow):
         first_buy_price = abs(int(data_list[14]))
         strong = abs(float(data_list[19]))
         trans_amount = int(data_list[6])
+        trans_time = data_list[10]
 
         # 처음 들어온 Data 는 before_stock_data 가 없으므로..
         # 이 if 는 각 Stock Code 마다 한번 씩만
@@ -1078,6 +1061,7 @@ class StockWindow(QMainWindow):
             # trans_data[stock_code][0] = 매도체결량
 
             self.trans_data[stock_code] = [0, 0]
+            self.check_trans_time[stock_code] = trans_time
             return
 
         # 체결가 = 저가 일 때,
@@ -1085,14 +1069,15 @@ class StockWindow(QMainWindow):
 
             # 기존에 최저가 보다 낮은 저가가 나왔을 때 최저가 변경
             if (self.lowest_price[stock_code] > low_price):
-                self.f.write("Change lowest price : " + str(low_price) + "\n")
+                #self.f.write("Change lowest price : " + str(low_price) + "\n")
                 if (not self.code_auto_flag.get(stock_code)):
                     self.log_edit.append("자동 매수 Flag Enable[found lowest] :" + stock_code)
                 self.code_auto_flag[stock_code] = True
-                self.f.write("자동 매수 Check Flag Enable[found lowest] :" + stock_code + "\n")
+                #self.f.write("자동 매수 Check Flag Enable[found lowest] :" + stock_code + "\n")
                 self.lowest_price[stock_code] = low_price
                 self.trans_cnt[stock_code] = 0
                 self.trans_data[stock_code] = [0, 0]
+                self.check_trans_time[stock_code] = trans_time
 
         # 자동 매수 Check Flag 가 Enable 되어있으면 최우선 매수 호가가 한단계 위이고, 체결강도 차이가 0보다 클 때
         # 매수 함
@@ -1114,15 +1099,32 @@ class StockWindow(QMainWindow):
             # 최우선 매수 호가가 최저가 보다 한단계 위일 때
             if ((self.lowest_price[stock_code] == low_price) and
                     ((self.lowest_price[stock_code] + step_price) == first_buy_price)):
+
+                # 매수세 계산
+                bull_power = (self.trans_data[stock_code][0]/self.trans_data[stock_code][1])
+
+                # 시간 차이 계산
+                before_hour = int(self.check_trans_time[stock_code][:2])
+                before_min = int(self.check_trans_time[stock_code][2:4])
+                before_sec = int(self.check_trans_time[stock_code][4:])
+
+                current_hour = int(trans_time[:2])
+                current_min = int(trans_time[2:4])
+                current_sec = int(trans_time[4:])
+
+                diff_time = ((current_hour * 3600) + (current_min * 60) + current_sec) - \
+                            ((before_hour * 3600) + (before_min * 60) + before_sec)
+
                 self.f.write("code: " + stock_code + ", cnt: " + str(self.trans_cnt[stock_code]) + ", trans-data: " +
-                      str(self.trans_data[stock_code][0]/self.trans_data[stock_code][1]) + "\n")
+                      str(bull_power) + ", diff_time: " + str(diff_time) + "\n")
                 self.log_edit.append("code: " + stock_code + ", cnt: " + str(self.trans_cnt[stock_code]) + ", transdata: " +
-                                     str(self.trans_data[stock_code][0]/self.trans_data[stock_code][1]))
+                                     str(bull_power) + ", diff_time: " + str(diff_time))
 
                 if((self.trans_cnt.get(stock_code) > threshold_cnt) and
-                        ( (self.trans_data[stock_code][0] / self.trans_data[stock_code][1]) > threshold_amount )):
+                        ( bull_power > threshold_amount ) and
+                        (diff_time > threshold_time)):
                     self.f.write("Buy[threshold_cnt] :" + stock_code + "\n")
-                    self.f.write("trans_amount :" + str(self.trans_data[stock_code][0] / self.trans_data[stock_code][1]) + "\n")
+                    self.f.write("bull_power :" + str(bull_power) + "\n")
 
                     #print("Buy!!!!!!")
 
@@ -1136,7 +1138,7 @@ class StockWindow(QMainWindow):
 
                     self.log_edit.append("매수 주문: " + stock_code + ", price: " + str(buy_order_price) +
                                          ", trans_cnt: " + str(self.trans_cnt[stock_code]) + ", trans_amount: " +
-                                         str(self.trans_data[stock_code][0] / self.trans_data[stock_code][1]))
+                                         str(bull_power) + ", diff_time: " + str(diff_time))
                     self.log_edit.append("자동 매수 Check Flag Disable :" + stock_code)
 
                 # 초기화
@@ -1153,7 +1155,7 @@ class StockWindow(QMainWindow):
 
 
         self.before_stock_data[stock_code] = data_list
-        print(self.lowest_price)
+        #print(self.lowest_price)
 
         # Sell
         if(self.auto_trade_flag) :
@@ -1259,8 +1261,8 @@ class StockWindow(QMainWindow):
                 # Rule Check for automation trade
                 self.checkCondition(data)
 
-                print(data)
-                self.f.write(str(data) + "\n")
+                #print(data)
+                #self.f.write(str(data) + "\n")
 
                 ohlcv['날짜'].append(str(datetime.today()))
                 self.df = pd.DataFrame(ohlcv, columns=[

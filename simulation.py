@@ -44,6 +44,9 @@ class StockClass():
         # 매수호가가 한단계 올라갔을 때 시점의 체결 count 체크를 위한
         self.trans_cnt = {}
 
+        # 매수세 체크를 위해 Flag 가 시작된 시간 저장을 위한
+        self.check_trans_time = {}
+
         # 체결 count 가 만족할 때 매수/매도 세를 저장하기 위한
         # trans_data[stock_code][0] = 매수체결량
         # trans_data[stock_code][0] = 매도체결량
@@ -104,6 +107,8 @@ class StockClass():
         # 위의 threshold_cnt 를 만족하고 그 구간 체결강도(매수/매도) 가 몇 이상일 때
         threshold_amount = 2
 
+        threshold_time = 60
+
         # Buy
         stock_code = "000660"
         current_price = abs(int(data_list[2]))
@@ -112,6 +117,7 @@ class StockClass():
         first_buy_price = abs(int(data_list[6]))
         strong = abs(float(data_list[19]))
         trans_amount = int(data_list[7])
+        trans_time = data_list[1]
 
         # 처음 들어온 Data 는 before_stock_data 가 없으므로..
         # 이 if 는 각 Stock Code 마다 한번 씩만
@@ -159,6 +165,7 @@ class StockClass():
             # trans_data[stock_code][1] = 매도체결량
 
             self.trans_data[stock_code] = [0, 0]
+            self.check_trans_time[stock_code] = trans_time
             return
 
         # 체결가 = 저가 일 때,
@@ -174,6 +181,7 @@ class StockClass():
                 self.lowest_price[stock_code] = low_price
                 self.trans_cnt[stock_code] = 0
                 self.trans_data[stock_code] = [0, 0]
+                self.check_trans_time[stock_code] = trans_time
 
         # 자동 매수 Check Flag 가 Enable 되어있으면 최우선 매수 호가가 한단계 위이고, 체결강도 차이가 0보다 클 때
         # 매수 함
@@ -194,13 +202,29 @@ class StockClass():
                     ((self.lowest_price[stock_code] + step_price) == first_buy_price)):
 
                 bull_power = (self.trans_data[stock_code][0] / self.trans_data[stock_code][1])
+
+                # 시간 차이 계산
+                before_hour = int(self.check_trans_time[stock_code][:2])
+                before_min = int(self.check_trans_time[stock_code][2:4])
+                before_sec = int(self.check_trans_time[stock_code][4:])
+
+                current_hour = int(trans_time[:2])
+                current_min = int(trans_time[2:4])
+                current_sec = int(trans_time[4:])
+
+                diff_time = ((current_hour * 3600) + (current_min * 60) + current_sec) - \
+                            ((before_hour * 3600) + (before_min * 60) + before_sec)
+
                 print("one step first buy! - checking condition [%d]" % self.csv_row_cnt)
-                print("\tcnt[%d], bull_power[%s]" % (self.trans_cnt.get(stock_code), str(bull_power)))
+                print("\tcnt[%d], bull_power[%s], diff_time[%d]" % (self.trans_cnt.get(stock_code),
+                                                                    str(bull_power), diff_time))
 
                 if((self.trans_cnt.get(stock_code) > threshold_cnt) and
-                        bull_power >= threshold_amount):
+                        bull_power >= threshold_amount):# and
+                        #diff_time >= threshold_time):
                     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                    print("Buy!!! bull_power: " + str(bull_power))
+                    print("Buy!!! bull_power: " + str(bull_power) +
+                          ", diff_time: " + str(diff_time))
                     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
                     #print("Buy!!!!!!")
@@ -213,7 +237,8 @@ class StockClass():
 
                     #self.testAutoBuy(stock_code, 1, str(buy_order_price), buy_cnt)
 
-                    print("BUY order: " + stock_code + ", price: " + str(buy_order_price) +
+                    print("BUY order: " + stock_code + ", row: " + str(self.csv_row_cnt) +
+                          ", price: " + str(buy_order_price) +
                                          ", trans_cnt: " + str(self.trans_cnt[stock_code]) + ", bull_power: " +
                                          str(bull_power))
                     print("Check Flag Disable :" + stock_code)
@@ -221,7 +246,8 @@ class StockClass():
                     self.f.write("[BUY]:LINE[" + str(self.csv_row_cnt) +
                                  "]:\tCODE[" + stock_code + "]:\tCNT[" +
                                  str(self.trans_cnt.get(stock_code)) + "]:\tBULL[" +
-                                 str(bull_power) + "]:\tPRICE[" + str(buy_order_price) + "]\n")
+                                 str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
+                                 "]:\tPRICE[" + str(buy_order_price) + "]\n")
 
                     if(self.opw00018Data['stocks']):
                         retention_cnt = int(self.opw00018Data['stocks'][0][2])
@@ -282,26 +308,31 @@ class StockClass():
                             print("Sell!!! current_price: " + str(current_price))
                             print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 
-                            print("Sell order: " + stock_code + ", 가격: " + str(sell_order_price) +
-                                                 ", 수량: " + stock_list[2])
-                            print("[Sell] :" + stock_code + "\n")
+                            print("Sell order: " + stock_code + ", row: " + str(self.csv_row_cnt) +
+                                  ", Price: " + str(sell_order_price) +
+                                                 ", amount: " + stock_list[2])
+                            #print("[Sell] :" + stock_code + "\n")
                             #print("[Sell]!!!!!" + stock_code + ", " + str(sell_order_price) + "," + stock_list[2])
                             #print( self.sell_order_list)
-                            print(str(self.sell_order_list) + "\n")
+                            print(str(self.sell_order_list))
                             self.f.write("[SELL]:LINE[" + str(self.csv_row_cnt) +
                                  "]:\tCODE[" + stock_code + "]:" +
                                     "\tPRICE[" + str(sell_order_price) + "]:" +
                                     "\tAMOUNT[" + stock_list[2] + "]:" +
                                     "\n")
 
+                            # 무조건 체결된다고 보고...
+                            self.sell_order_list[str("A" + stock_code)] -= int(stock_list[2])
+                            self.opw00018Data = {'accountEvaluation': [], 'stocks': []}
+                            print(str(self.sell_order_list))
 
                         # 기존에 매도 주문 내역이 있고, 매도 주문을 낼 수 있는 잔량이 있으면 매도 주문
                         elif ( (int(stock_list[2]) - self.sell_order_list[str("A" + stock_code)]) > 0):
                             #self.testAutoBuy(stock_code, 2, str(first_sell_price), stock_list[2])
                             self.sell_order_list[str("A" + stock_code)] = self.sell_order_list[str("A" + stock_code)] + int(stock_list[2])
-                            print("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
+                            print("Sell order: " + stock_code + ", 가격: " + str(sell_order_price) +
                                                  ", 수량: " + stock_list[2])
-                            print("[Sell] :" + stock_code + "\n")
+
                             #print("[Sell]!!!!!" + stock_code + ", " + str(sell_order_price) + "," + stock_list[2])
                             print(str(self.sell_order_list) + "\n")
 
@@ -331,7 +362,7 @@ if __name__ == "__main__":
     if(len(sys.argv) == 2):
         filename = sys.argv[1]
 
-    f = open(filename, "r" )
+    f = open(filename, "r", encoding='UTF8' )
     rdr = csv.reader(f)
 
     for line in rdr:
