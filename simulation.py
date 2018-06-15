@@ -220,8 +220,8 @@ class StockClass():
                                                                     str(bull_power), diff_time))
 
                 if((self.trans_cnt.get(stock_code) > threshold_cnt) and
-                        bull_power >= threshold_amount):# and
-                        #diff_time >= threshold_time):
+                       bull_power >= threshold_amount and
+                        diff_time >= threshold_time):
                     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                     print("Buy!!! bull_power: " + str(bull_power) +
                           ", diff_time: " + str(diff_time))
@@ -243,7 +243,7 @@ class StockClass():
                                          str(bull_power))
                     print("Check Flag Disable :" + stock_code)
 
-                    self.f.write("[BUY]:LINE[" + str(self.csv_row_cnt) +
+                    self.f.write("[" + split_data[0] + "][BUY ]:LINE[" + str(self.csv_row_cnt) +
                                  "]:\tCODE[" + stock_code + "]:\tCNT[" +
                                  str(self.trans_cnt.get(stock_code)) + "]:\tBULL[" +
                                  str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
@@ -291,7 +291,7 @@ class StockClass():
 
                 if (stock_list[0] == ("A" + stock_code)):
                     # 매입가 대비 1% 가 오른 현재 가격이면 매도 주문
-                    if ((int(stock_list[3]) * profit_rate) < current_price ):
+                    if ((int(stock_list[3]) * profit_rate) <= current_price ):
                         print("1% Increase: " + stock_code)
                         sell_order_price = 0
 
@@ -315,10 +315,11 @@ class StockClass():
                             #print("[Sell]!!!!!" + stock_code + ", " + str(sell_order_price) + "," + stock_list[2])
                             #print( self.sell_order_list)
                             print(str(self.sell_order_list))
-                            self.f.write("[SELL]:LINE[" + str(self.csv_row_cnt) +
+                            self.f.write("[" + split_data[0] +"][SELL]:LINE[" + str(self.csv_row_cnt) +
                                  "]:\tCODE[" + stock_code + "]:" +
                                     "\tPRICE[" + str(sell_order_price) + "]:" +
                                     "\tAMOUNT[" + stock_list[2] + "]:" +
+                                    "\tPROFIT[" + str(sell_order_price-int(stock_list[3])) + "]:" +
                                     "\n")
 
                             # 무조건 체결된다고 보고...
@@ -362,7 +363,7 @@ if __name__ == "__main__":
     if(len(sys.argv) == 2):
         filename = sys.argv[1]
 
-    f = open(filename, "r", encoding='UTF8' )
+    f = open(filename, "r")
     rdr = csv.reader(f)
 
     for line in rdr:
