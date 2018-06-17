@@ -141,7 +141,7 @@ class StockClass():
         # 위의 threshold_cnt 를 만족하고 그 구간 체결강도(매수/매도) 가 몇 이상일 때
         threshold_amount = 2
 
-        threshold_time = 60
+        threshold_time = 30
 
         # Buy
         stock_code = "000660"
@@ -242,34 +242,32 @@ class StockClass():
             else:
                 self.trans_data[stock_code][1] = self.trans_data[stock_code][1] + abs(trans_amount)
 
-            # 최우선 매수 호가가 최저가 보다 한단계 위일 때
-            if ((self.lowest_price[stock_code] == low_price) and
-                    ((self.lowest_price[stock_code] + step_price) == first_buy_price)):
+            # 시간 차이 계산
+            before_hour = int(self.check_trans_time[stock_code][:2])
+            before_min = int(self.check_trans_time[stock_code][2:4])
+            before_sec = int(self.check_trans_time[stock_code][4:])
+
+            current_hour = int(trans_time[:2])
+            current_min = int(trans_time[2:4])
+            current_sec = int(trans_time[4:])
+
+            diff_time = ((current_hour * 3600) + (current_min * 60) + current_sec) - \
+                        ((before_hour * 3600) + (before_min * 60) + before_sec)
+
+            if(diff_time > threshold_time):
 
                 if(self.trans_data[stock_code][1] == 0):
                     bull_power = 0
                 else:
                     bull_power = (self.trans_data[stock_code][0] / self.trans_data[stock_code][1])
 
-                # 시간 차이 계산
-                before_hour = int(self.check_trans_time[stock_code][:2])
-                before_min = int(self.check_trans_time[stock_code][2:4])
-                before_sec = int(self.check_trans_time[stock_code][4:])
-
-                current_hour = int(trans_time[:2])
-                current_min = int(trans_time[2:4])
-                current_sec = int(trans_time[4:])
-
-                diff_time = ((current_hour * 3600) + (current_min * 60) + current_sec) - \
-                            ((before_hour * 3600) + (before_min * 60) + before_sec)
-
                 print("one step first buy! - checking condition [%d]" % self.csv_row_cnt)
                 print("\tcnt[%d], bull_power[%s], diff_time[%d]" % (self.trans_cnt.get(stock_code),
                                                                     str(bull_power), diff_time))
 
                 if((self.trans_cnt.get(stock_code) > threshold_cnt) and
-                       bull_power >= threshold_amount and
-                       diff_time >= threshold_time):
+                       bull_power >= threshold_amount):# and
+                       #diff_time >= threshold_time):
                     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                     print("Buy!!! bull_power: " + str(bull_power) +
                           ", diff_time: " + str(diff_time))
@@ -299,7 +297,7 @@ class StockClass():
                                  "]:\tCODE[" + stock_code + "]:\tCNT[" +
                                  str(self.trans_cnt.get(stock_code)) + "]:\tBULL[" +
                                  str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
-                                 "]:\tPRICE[" + str(buy_order_price) + "]\n")
+                                 "]:\tORDER_PRICE[" + str(buy_order_price) + "]\n")
 
                     if(self.opw00018Data['stocks']):
                         retention_cnt = int(self.opw00018Data['stocks'][0][2])
@@ -316,6 +314,12 @@ class StockClass():
                         #self.opw00018Data['stocks'] = list_data
                         self.opw00018Data['stocks'].append(list_data)
 
+                else:
+                    self.f.write("[" + split_data[0] + "][NOT-BUY ]:LINE[" + str(self.csv_row_cnt) +
+                                 "]:\tCODE[" + stock_code + "]:\tCNT[" +
+                                 str(self.trans_cnt.get(stock_code)) + "]:\tBULL[" +
+                                 str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
+                                 "]:\tCUR_PRICE[" + str(current_price) + "]\n")
                         #self.opw00018Data['stocks'] = [stock_code, "SIMULATION", buy_cnt, str(buy_order_price)]
 
                     #print(self.opw00018Data['stocks'])

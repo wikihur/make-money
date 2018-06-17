@@ -1079,7 +1079,7 @@ class StockWindow(QMainWindow):
                 self.trans_data[stock_code] = [0, 0]
                 self.check_trans_time[stock_code] = trans_time
 
-        # 자동 매수 Check Flag 가 Enable 되어있으면 최우선 매수 호가가 한단계 위이고, 체결강도 차이가 0보다 클 때
+        # 자동 매수 Check Flag 가 Enable 되어있으면 최우선 매수 호가가 한단계 위이고, bull_power > 2
         # 매수 함
         if (self.code_auto_flag.get(stock_code) and self.auto_trade_flag):
 
@@ -1120,11 +1120,12 @@ class StockWindow(QMainWindow):
                 self.log_edit.append("code: " + stock_code + ", cnt: " + str(self.trans_cnt[stock_code]) + ", transdata: " +
                                      str(bull_power) + ", diff_time: " + str(diff_time))
 
-                if((self.trans_cnt.get(stock_code) > threshold_cnt) and
-                        ( bull_power > threshold_amount ) and
-                        (diff_time > threshold_time)):
+                if((self.trans_cnt.get(stock_code) >= threshold_cnt) and
+                        ( bull_power >= threshold_amount ) and
+                        (diff_time >= threshold_time)):
                     self.f.write("Buy[threshold_cnt] :" + stock_code + "\n")
                     self.f.write("bull_power :" + str(bull_power) + "\n")
+                    self.f.write("diff_time :" + str(diff_time) + "\n")
 
                     #print("Buy!!!!!!")
 
@@ -1166,8 +1167,9 @@ class StockWindow(QMainWindow):
                 if (stock_list[0] == ("A" + stock_code)):
 
                     # 매입가 대비 1% 가 오른 현재 가격이면 매도 주문
-                    if ((int(stock_list[3]) * profit_rate) < current_price ):
-                        self.log_edit.append("매입가 대비 1% 상승: " + stock_code)
+                    if ((int(stock_list[3]) * profit_rate) <= current_price ):
+                        self.log_edit.append("매입가 대비 " + str(profit_rate) +
+                                             " 상승: " + stock_code)
                         sell_order_price = 0
 
                         if ((first_sell_price - first_buy_price) > step_price):
@@ -1182,6 +1184,8 @@ class StockWindow(QMainWindow):
                             self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
                                                  ", 수량: " + stock_list[2])
                             self.f.write("[Sell] :" + stock_code + "\n")
+                            self.f.write("[Sell][Price] :" + str(sell_order_price) + ",[amount]: " +
+                                         stock_list[2] +"\n")
                             #print("[Sell]!!!!!" + stock_code + ", " + str(sell_order_price) + "," + stock_list[2])
                             #print( self.sell_order_list)
                             self.f.write(str(self.sell_order_list) + "\n")
@@ -1193,6 +1197,8 @@ class StockWindow(QMainWindow):
                             self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
                                                  ", 수량: " + stock_list[2])
                             self.f.write("[Sell] :" + stock_code + "\n")
+                            self.f.write("[Sell][Price] :" + str(sell_order_price) + ",[amount]: " +
+                                         stock_list[2] + "\n")
                             #print("[Sell]!!!!!" + stock_code + ", " + str(sell_order_price) + "," + stock_list[2])
                             self.f.write(str(self.sell_order_list) + "\n")
 
