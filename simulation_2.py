@@ -5,6 +5,7 @@ import csv
 import sys
 import re
 from datetime import datetime
+import numpy
 
 class StockClass():
     def __init__(self):
@@ -66,6 +67,12 @@ class StockClass():
 
         # Sell order list
         self.sell_order_list = {}
+
+        # 최우선 매수 평균을 위한
+        self.top_buy_price = {}
+
+        # 체결 강도 표준편차를 위한
+        self.stdev_strong = {}
 
         # kospi list
         self.kospi_code_list = ['000020', '000030', '000040', '000050', '000060', '000070', '000075',
@@ -133,7 +140,7 @@ class StockClass():
         profit_rate = 1.01
 
         # 체결강도 차이가 0.1 이상일 때 주문
-        diff_strong = 0.1
+        #diff_strong = 0.1
 
         # 매수 호가가 최저보다 한단계 위 일때 그 전 체결 주문이 100개 이상
         threshold_cnt = 100
@@ -201,6 +208,8 @@ class StockClass():
 
             self.trans_data[stock_code] = [0, 0]
             self.check_trans_time[stock_code] = trans_time
+            self.stdev_strong.clear()
+            self.top_buy_price.clear()
             return
 
         # 각 요일별 최고가 저장을 위해
@@ -227,6 +236,8 @@ class StockClass():
                 self.trans_cnt[stock_code] = 0
                 self.trans_data[stock_code] = [0, 0]
                 self.check_trans_time[stock_code] = trans_time
+                self.stdev_strong.clear()
+                self.top_buy_price.clear()
 
         # 자동 매수 Check Flag 가 Enable 되어있으면 최우선 매수 호가가 한단계 위이고, 체결강도 차이가 0보다 클 때
         # 매수 함
@@ -254,6 +265,19 @@ class StockClass():
             diff_time = ((current_hour * 3600) + (current_min * 60) + current_sec) - \
                         ((before_hour * 3600) + (before_min * 60) + before_sec)
 
+            # 최우선 매수 호가 저장
+            if (self.top_buy_price.get(stock_code)):
+                self.top_buy_price[stock_code] = int(self.top_buy_price[stock_code]) + first_buy_price
+            else:
+                self.top_buy_price[stock_code] = first_buy_price
+
+            # 체결강도 저장
+            if (self.stdev_strong.get(stock_code)):
+                self.stdev_strong[stock_code].append(strong)
+            else:
+                self.stdev_strong[stock_code] = [strong]
+
+
             if(diff_time > threshold_time):
 
                 if(self.trans_data[stock_code][1] == 0):
@@ -265,8 +289,37 @@ class StockClass():
                 print("\tcnt[%d], bull_power[%s], diff_time[%d]" % (self.trans_cnt.get(stock_code),
                                                                     str(bull_power), diff_time))
 
+
+                print("top_buy[%d]" % (self.top_buy_price.get(stock_code) / self.trans_cnt.get(stock_code)))
+
+                arr = numpy.array(self.stdev_strong.get(stock_code))
+                #print(numpy.mean(arr))  # 평균
+                #print(numpy.var(arr))  # 분산
+                #print(numpy.std(arr))  # 표준편차
+                print(self.stdev_strong.get(stock_code))
+                print(arr[0])
+                print(arr[-1])
+
+                # 체결강도 표준편차 , 1보다 작을 때
+                stdev_strong = numpy.std(arr)
+
+                # 체결 강도가 커지면 매수세가 높음
+                diff_strong = arr[-1] - arr[0]
+
+                # 최우선 매수 호가 평균
+                top_buy_avg = self.top_buy_price.get(stock_code) / self.trans_cnt.get(stock_code)
+
+                # 현재 저가와 최우선 매수호가 사이의 변동값
+                # 1이면 저가와 최우선 매수호가가 계속 같았던 것이고
+                # 1보다 높으면 최우선 매수호가가 올라가는 중
+
+                div_avg_low = top_buy_avg / low_price
+
                 if((self.trans_cnt.get(stock_code) > threshold_cnt) and
-                       bull_power >= threshold_amount):# and
+                        (bull_power >= threshold_amount) and
+                        (div_avg_low > 1) and
+                        (diff_strong > 0) and
+                        (stdev_strong < 1)):
                        #diff_time >= threshold_time):
                     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
                     print("Buy!!! bull_power: " + str(bull_power) +
@@ -297,7 +350,10 @@ class StockClass():
                                  "]:\tCODE[" + stock_code + "]:\tCNT[" +
                                  str(self.trans_cnt.get(stock_code)) + "]:\tBULL[" +
                                  str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
-                                 "]:\tORDER_PRICE[" + str(buy_order_price) + "]\n")
+                                 "]:\tORDER_PRICE[" + str(buy_order_price) + "]:\t" +
+                                 "TOP_BUY[" + str(div_avg_low) + "]:\t" +
+                                 "DIFF_STR[" + str(diff_strong) + "]:\t" +
+                                 "STDEV[" + str(stdev_strong) + "]\n")
 
                     if(self.opw00018Data['stocks']):
                         retention_cnt = int(self.opw00018Data['stocks'][0][2])
@@ -319,7 +375,10 @@ class StockClass():
                                  "]:\tCODE[" + stock_code + "]:\tCNT[" +
                                  str(self.trans_cnt.get(stock_code)) + "]:\tBULL[" +
                                  str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
-                                 "]:\tCUR_PRICE[" + str(current_price) + "]\n")
+                                 "]:\tCUR_PRICE[" + str(current_price) + "]:\t" +
+                                 "TOP_BUY[" + str(div_avg_low) + "]:\t" +
+                                 "DIFF_STR[" + str(diff_strong) + "]:\t" +
+                                 "STDEV[" + str(stdev_strong) + "]\n")
                         #self.opw00018Data['stocks'] = [stock_code, "SIMULATION", buy_cnt, str(buy_order_price)]
 
                     #print(self.opw00018Data['stocks'])
@@ -328,6 +387,8 @@ class StockClass():
                 self.code_auto_flag[stock_code] = False
                 self.trans_cnt[stock_code] = 0
                 self.trans_data[stock_code] = [0, 0]
+                self.stdev_strong.clear()
+                self.top_buy_price.clear()
 
                 #print("Check strong difference")
                 #print("Strong: " + str(strong) + ", Before_strong: " + str(before_strong) + " = " +

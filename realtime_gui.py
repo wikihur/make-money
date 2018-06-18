@@ -991,7 +991,8 @@ class StockWindow(QMainWindow):
         buy_cnt = "10"
 
         # 1% 수익 목표
-        profit_rate = 1.01
+        #profit_rate = 1.01
+        profit_rate = 1.008
 
         # 체결강도 차이가 0.1 이상일 때 주문
         diff_strong = 0.1
