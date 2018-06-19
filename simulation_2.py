@@ -118,6 +118,26 @@ class StockClass():
                          (self.before_date, str(self.lowest_price.get("000660")),
                           str(self.highest_price.get("000660")), str(per_total),
                           str(self.after_price.get("000660")), str(per_after) ))
+
+            retention_cnt = 0
+            retention_price = 0
+            current_price = 0
+
+            if(self.opw00018Data.get('stocks')):
+                retention_cnt = int(self.opw00018Data['stocks'][0][2])
+                retention_price = int(self.opw00018Data['stocks'][0][3])
+                current_price = abs(int(data_list[2]))
+
+            ev_per = 0
+            if(current_price != 0):
+                ev_per = (retention_price/current_price) - 1
+
+            self.f.write("[%s]::::::::[RETENTION_CNT][%s]:[RETENTION_PRICE][%s]:[EV-PRICE][%s]:[EV-PER][%s]\n\n" %
+                         (self.before_date, str(retention_cnt), str(retention_price),
+                          str(retention_price-current_price),
+                          str(ev_per)))
+
+
             self.before_date = split_data[0]
             self.lowest_price.clear()
             self.highest_price.clear()
@@ -296,9 +316,9 @@ class StockClass():
                 #print(numpy.mean(arr))  # 평균
                 #print(numpy.var(arr))  # 분산
                 #print(numpy.std(arr))  # 표준편차
-                print(self.stdev_strong.get(stock_code))
-                print(arr[0])
-                print(arr[-1])
+                #print(self.stdev_strong.get(stock_code))
+                #print(arr[0])
+                #print(arr[-1])
 
                 # 체결강도 표준편차 , 1보다 작을 때
                 stdev_strong = numpy.std(arr)
@@ -346,7 +366,7 @@ class StockClass():
                     if(not self.first_buy_price.get(stock_code)):
                         self.first_buy_price[stock_code] = buy_order_price
 
-                    self.f.write("[" + split_data[0] + "][BUY ]:LINE[" + str(self.csv_row_cnt) +
+                    self.f.write("[" + split_data[0] + "]====[BUY ]:LINE[" + str(self.csv_row_cnt) +
                                  "]:\tCODE[" + stock_code + "]:\tCNT[" +
                                  str(self.trans_cnt.get(stock_code)) + "]:\tBULL[" +
                                  str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
@@ -432,7 +452,7 @@ class StockClass():
                             #print("[Sell]!!!!!" + stock_code + ", " + str(sell_order_price) + "," + stock_list[2])
                             #print( self.sell_order_list)
                             print(str(self.sell_order_list))
-                            self.f.write("[" + split_data[0] +"][SELL]:LINE[" + str(self.csv_row_cnt) +
+                            self.f.write("[" + split_data[0] +"]====[SELL]:LINE[" + str(self.csv_row_cnt) +
                                  "]:\tCODE[" + stock_code + "]:" +
                                     "\tPRICE[" + str(sell_order_price) + "]:" +
                                     "\tAMOUNT[" + stock_list[2] + "]:" +
@@ -480,7 +500,7 @@ if __name__ == "__main__":
     if(len(sys.argv) == 2):
         filename = sys.argv[1]
 
-    f = open(filename, "r", encoding='UTF8')
+    f = open(filename, "r")
     rdr = csv.reader(f)
 
     for line in rdr:
