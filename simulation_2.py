@@ -92,7 +92,7 @@ class StockClass():
 
     def checkCondition(self, data_list):
         self.csv_row_cnt += 1
-        if (len(data_list) == 0 or len(data_list) < 23):
+        if (len(data_list) == 0 or len(data_list) < 24):
             print("empty")
             return
 
@@ -100,24 +100,26 @@ class StockClass():
             print("first row")
             return
 
+        stock_code = data_list[23]
+
         split_data = re.split(" ", data_list[0])
         if(self.before_date != split_data[0]):
             per_after = 0
-            if(self.after_price.get("000660") and self.first_buy_price.get("000660")):
-                per_after = ((self.after_price.get("000660") / self.first_buy_price.get("000660")) - 1) * 100
+            if(self.after_price.get(stock_code) and self.first_buy_price.get(stock_code)):
+                per_after = ((self.after_price.get(stock_code) / self.first_buy_price.get(stock_code)) - 1) * 100
             else:
                 per_after = 0
 
             per_total = 0
-            if(self.lowest_price.get("000660") and self.highest_price.get("000660")):
-                per_total = ( (self.highest_price.get("000660") / self.lowest_price.get("000660")) - 1) * 100
+            if(self.lowest_price.get(stock_code) and self.highest_price.get(stock_code)):
+                per_total = ( (self.highest_price.get(stock_code) / self.lowest_price.get(stock_code)) - 1) * 100
             else:
                 per_total = 0
 
             self.f.write("[%s][LOWEST][%s]:[HIGHEST][%s]:[TOTAL_PER][%s]:[AFTER][%s]:[PERCENT][%s]\n" %
-                         (self.before_date, str(self.lowest_price.get("000660")),
-                          str(self.highest_price.get("000660")), str(per_total),
-                          str(self.after_price.get("000660")), str(per_after) ))
+                         (self.before_date, str(self.lowest_price.get(stock_code)),
+                          str(self.highest_price.get(stock_code)), str(per_total),
+                          str(self.after_price.get(stock_code)), str(per_after) ))
 
             retention_cnt = 0
             retention_price = 0
@@ -130,13 +132,27 @@ class StockClass():
 
             ev_per = 0
             if(current_price != 0):
-                ev_per = (retention_price/current_price) - 1
+                if (retention_price > current_price):
+                    ev_per = 1 - (current_price/retention_price)
+                else :
+                    ev_per = (retention_price/current_price) - 1
 
-            self.f.write("[%s]::::::::[RETENTION_CNT][%s]:[RETENTION_PRICE][%s]:[EV-PRICE][%s]:[EV-PER][%s]\n\n" %
-                         (self.before_date, str(retention_cnt), str(retention_price),
-                          str(retention_price-current_price),
-                          str(ev_per)))
+                if(retention_price > current_price):
+                    ev_per = ev_per * -1
 
+            ev_price = 0
+            if(retention_price > current_price):
+                ev_price = current_price -  retention_price
+            else:
+                ev_price = retention_price - current_price
+
+            #print(ev_price)
+            self.f.write("[%s]::::::::[RETENTION_CNT][%s]:[RETENTION_PRICE][%s]:[CUR][%d][EV-PRICE][%d]:[EV-PER][%f]\n\n" %
+                         (self.before_date, str(retention_cnt), str(retention_price), current_price,
+                          ev_price, ev_per))
+
+            if (data_list[0] == "END"):
+                self.opw00018Data['stocks'].clear()
 
             self.before_date = split_data[0]
             self.lowest_price.clear()
@@ -157,7 +173,7 @@ class StockClass():
         buy_cnt = "10"
 
         # 1% 수익 목표
-        profit_rate = 1.01
+        profit_rate = 1.008
 
         # 체결강도 차이가 0.1 이상일 때 주문
         #diff_strong = 0.1
@@ -168,10 +184,10 @@ class StockClass():
         # 위의 threshold_cnt 를 만족하고 그 구간 체결강도(매수/매도) 가 몇 이상일 때
         threshold_amount = 2
 
-        threshold_time = 30
+        threshold_time = 60
 
         # Buy
-        stock_code = "000660"
+        stock_code =  data_list[23]
         current_price = abs(int(data_list[2]))
         low_price = abs(int(data_list[12]))
         high_price = abs(int(data_list[11]))
@@ -305,6 +321,7 @@ class StockClass():
                 else:
                     bull_power = (self.trans_data[stock_code][0] / self.trans_data[stock_code][1])
 
+
                 print("one step first buy! - checking condition [%d]" % self.csv_row_cnt)
                 print("\tcnt[%d], bull_power[%s], diff_time[%d]" % (self.trans_cnt.get(stock_code),
                                                                     str(bull_power), diff_time))
@@ -366,14 +383,16 @@ class StockClass():
                     if(not self.first_buy_price.get(stock_code)):
                         self.first_buy_price[stock_code] = buy_order_price
 
-                    self.f.write("[" + split_data[0] + "]====[BUY ]:LINE[" + str(self.csv_row_cnt) +
+                    self.f.write("============================================================\n" +
+                                 "[" + split_data[0] + "][BUY ]:LINE[" + str(self.csv_row_cnt) +
                                  "]:\tCODE[" + stock_code + "]:\tCNT[" +
                                  str(self.trans_cnt.get(stock_code)) + "]:\tBULL[" +
                                  str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
                                  "]:\tORDER_PRICE[" + str(buy_order_price) + "]:\t" +
                                  "TOP_BUY[" + str(div_avg_low) + "]:\t" +
                                  "DIFF_STR[" + str(diff_strong) + "]:\t" +
-                                 "STDEV[" + str(stdev_strong) + "]\n")
+                                 "STDEV[" + str(stdev_strong) + "]\n" +
+                                 "============================================================\n")
 
                     if(self.opw00018Data['stocks']):
                         retention_cnt = int(self.opw00018Data['stocks'][0][2])
@@ -452,12 +471,13 @@ class StockClass():
                             #print("[Sell]!!!!!" + stock_code + ", " + str(sell_order_price) + "," + stock_list[2])
                             #print( self.sell_order_list)
                             print(str(self.sell_order_list))
-                            self.f.write("[" + split_data[0] +"]====[SELL]:LINE[" + str(self.csv_row_cnt) +
-                                 "]:\tCODE[" + stock_code + "]:" +
+                            self.f.write("============================================================\n" +
+                                         "[" + split_data[0] +"][SELL]:LINE[" + str(self.csv_row_cnt) +
+                                        "]:\tCODE[" + stock_code + "]:" +
                                     "\tPRICE[" + str(sell_order_price) + "]:" +
                                     "\tAMOUNT[" + stock_list[2] + "]:" +
                                     "\tPROFIT[" + str(sell_order_price-int(stock_list[3])) + "]:" +
-                                    "\n")
+                                    "\n" + "============================================================\n")
 
                             # 무조건 체결된다고 보고...
                             self.sell_order_list[str("A" + stock_code)] -= int(stock_list[2])
@@ -495,21 +515,55 @@ if __name__ == "__main__":
     print("Number of arguments: ", len(sys.argv), "arguments")
     print("Arguments List: ", str(sys.argv))
 
-    filename = "C:/Users/User/Desktop/시세/Data/005930.csv"
+    """
+   000270 000660 000810 003550 003670
+    005380 005490 005690 005930 006400
+    007390 010950 011170 012330 014200
+    015760 016170 017670 018260 028260
+    028300 032830 033780 034220 034230
+    034730 035420 035720 035760 036490
+    036830 041960 042000 044180 046110
+    046890 049950 051900 051910 055550
+    056190 066570 066970 068270 068760
+    078340 084990 086790 086900 090430
+    091990 095700 096770 098460 105560
+    112040 130960 145020 151910 178920
+    207940 214270 215600 240810 251270
+    253450 263750 950160
+    """
+
+    code_list = ["005930", "000660", "068270", "005490", "005380",
+                 "207940", "051910", "105560", "028260", "035420",
+                 "055550", "015760", "012330", "051900", "032830",
+                 "034730", "096770", "017670", "090430", "018260",
+                 "006400", "066570", "086790", "033780", "003550",
+                 "000270", "011170", "251270", "010950", "000810",
+
+                 "091990", "215600", "086900", "084990", "151910",
+                 "028300", "130960", "253450", "068760", "003670",
+                 "263750", "078340", "950160", "016170", "145020"]
+
+    code_list = ["005930"]
+    filename = "C:/Users/User/Desktop/시세/Data/000810.csv"
 
     if(len(sys.argv) == 2):
         filename = sys.argv[1]
 
-    f = open(filename, "r")
-    rdr = csv.reader(f)
+    for code in code_list:
 
-    for line in rdr:
-#        print(line)
+        filename = "C:/Users/User/Desktop/시세/Data/" + code + ".csv"
+        f = open(filename, "r", encoding='UTF8')
+        rdr = csv.reader(f)
+
+        #code = filename[30:36]
+
+        for line in rdr:
+    #        print(line)
+            line.append(code)
+            c_main.checkCondition(line)
+
+        # Today 정보를 파일에 쓰기 위해
+        line[0] = "END"
         c_main.checkCondition(line)
 
-    # Today 정보를 파일에 쓰기 위해
-    line[0] = "END"
-    c_main.checkCondition(line)
-
-    f.close()
-
+        f.close()
