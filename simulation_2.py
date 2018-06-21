@@ -132,27 +132,20 @@ class StockClass():
 
             ev_per = 0
             if(current_price != 0):
-                if (retention_price > current_price):
-                    ev_per = 1 - (current_price/retention_price)
-                else :
-                    ev_per = (retention_price/current_price) - 1
+                ev_per = (1 - (retention_price/current_price)) * 100
 
-                if(retention_price > current_price):
-                    ev_per = ev_per * -1
+            ev_price = current_price - retention_price
+            #if(retention_price > current_price):
+            #    ev_price = retention_price - current_price
+            #else:
+            #    ev_price = current_price - retention_price
 
-            ev_price = 0
-            if(retention_price > current_price):
-                ev_price = current_price -  retention_price
-            else:
-                ev_price = retention_price - current_price
-
-            #print(ev_price)
             self.f.write("[%s]::::::::[RETENTION_CNT][%s]:[RETENTION_PRICE][%s]:[CUR][%d][EV-PRICE][%d]:[EV-PER][%f]\n\n" %
                          (self.before_date, str(retention_cnt), str(retention_price), current_price,
                           ev_price, ev_per))
 
             if (data_list[0] == "END"):
-                self.opw00018Data['stocks'].clear()
+                self.opw00018Data['stocks'] = []
 
             self.before_date = split_data[0]
             self.lowest_price.clear()
@@ -182,7 +175,8 @@ class StockClass():
         threshold_cnt = 100
 
         # 위의 threshold_cnt 를 만족하고 그 구간 체결강도(매수/매도) 가 몇 이상일 때
-        threshold_amount = 2
+        #threshold_amount = 2
+        threshold_amount = 1
 
         threshold_time = 60
 
@@ -355,7 +349,7 @@ class StockClass():
                 if((self.trans_cnt.get(stock_code) > threshold_cnt) and
                         (bull_power >= threshold_amount) and
                         (div_avg_low > 1) and
-                        (diff_strong > 0) and
+                        (diff_strong > 0) and (diff_strong < 1) and
                         (stdev_strong < 1)):
                        #diff_time >= threshold_time):
                     print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
@@ -543,7 +537,7 @@ if __name__ == "__main__":
                  "028300", "130960", "253450", "068760", "003670",
                  "263750", "078340", "950160", "016170", "145020"]
 
-    code_list = ["005930"]
+    code_list = ["000660"]
     filename = "C:/Users/User/Desktop/시세/Data/000810.csv"
 
     if(len(sys.argv) == 2):
@@ -551,8 +545,9 @@ if __name__ == "__main__":
 
     for code in code_list:
 
-        filename = "C:/Users/User/Desktop/시세/Data/" + code + ".csv"
-        f = open(filename, "r", encoding='UTF8')
+        #filename = "C:/Users/User/Desktop/시세/Data/" + code + ".csv"
+        filename = code + ".csv"
+        f = open(filename, "r")
         rdr = csv.reader(f)
 
         #code = filename[30:36]
