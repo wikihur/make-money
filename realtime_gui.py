@@ -5,6 +5,7 @@ from PyQt5.QtCore import *
 import pandas as pd
 import sqlite3
 from datetime import datetime
+import numpy
 
 class ParameterTypeError(Exception):
     """ 파라미터 타입이 일치하지 않을 경우 발생하는 예외 """
@@ -589,6 +590,12 @@ class StockWindow(QMainWindow):
         # Sell order list
         self.sell_order_list = {}
 
+        # 최우선 매수 평균을 위한
+        self.top_buy_price = {}
+
+        # 체결 강도 표준편차를 위한
+        self.stdev_strong = {}
+
         # kospi list
         self.kospi_code_list = []
 
@@ -646,7 +653,33 @@ class StockWindow(QMainWindow):
             S-Oil	010950
             삼성화재	000810
 
-            KOSDAQ
+            삼성전기    009150
+            우리은행	000030
+            아모레G	002790
+            기업은행	024110
+            카카오     035720
+
+            엔씨소프트	036570
+            현대중공업	009540
+            현대제철	004020
+            고려아연	010130
+            KT	030200
+
+            현대건설	000720
+            이마트	139480
+            LG디스플레이	034220
+            코웨이	021240
+            롯데지주	004990
+
+            오리온	271560
+            현대중공업지주	267250
+            LG유플러스	032640
+            한국가스공사	036460
+            KODEX200        069500
+
+
+
+           KOSDAQ
 
             셀트리온헬스케어	091990
             신라젠	215600
@@ -684,6 +717,30 @@ class StockWindow(QMainWindow):
             미래컴퍼니	049950
             서울반도체	046890
 
+            GS홈쇼핑	028150
+            에스모	073070
+            포스코 ICT	022100
+            제일홀딩스	003380
+            더블유게임즈	192080
+
+            에스엠	041510
+            리노공업	058470
+            안트로젠	065660
+            지트리비앤티	115450
+            상상인	038540
+
+            톱텍	108230
+            이오테크닉스	039030
+            JYP Ent.	035900
+            차바이오텍	085660
+            케어젠	214370
+
+            코오롱생명과학	102940
+            웹젠	069080
+            아난티	025980
+            위메이드	112040
+            콜마비앤에이치	200130
+
         """
         code_list = ["005930", "000660", "068270", "005490", "005380",
                      "207940", "051910", "105560", "028260", "035420",
@@ -691,14 +748,23 @@ class StockWindow(QMainWindow):
                      "034730", "096770", "017670", "090430", "018260",
                      "006400", "066570", "086790", "033780", "003550",
                      "000270", "011170", "251270", "010950", "000810",
+                     "009150", "000030", "002790", "024110", "035720",
+                   #  "036570", "009540", "004020", "010130", "030200",
+                   #  "000720", "139480", "034220", "021240", "004990",
+                   #  "271560", "267250", "032640", "036460", "069500",
+
 
                      "091990", "215600", "086900", "084990", "151910",
                      "028300", "130960", "253450", "068760", "003670",
-                     "263750", "078340", "950160", "016170", "145020"]
-
-                     #"095700", "034230", "036490", "041960", "178920",
-                     #"042000", "007390", "240810", "035760", "056190",
-                     #"066970", "098460", "036830", "049950", "046890" ]
+                     "263750", "078340", "950160", "016170", "145020",
+                     "095700", "034230", "036490", "041960", "178920",
+                     "042000", "007390", "240810", "035760", "056190",
+                     "066970", "098460", "036830", "049950", "046890"
+                    #"028150", "073070", "022100", "003380", "192080",
+                    #"041510", "058470", "065660", "115450", "038540",
+                    #"108230", "039030", "035900", "085660", "214370",
+                    #"102940", "069080", "025980", "112040", "200130"
+                     ]
 
         for f in code_list:
             self.set_real_start(f)
@@ -977,7 +1043,309 @@ class StockWindow(QMainWindow):
             except AttributeError:
                 pass
 
+    def getStepPrice(self, stock_code, current_price):
+
+        step_price = 0
+        if (current_price < 1000):
+            step_price = 1
+        elif (current_price < 5000):
+            step_price = 5
+        elif (current_price < 10000):
+            step_price = 10
+        elif (current_price < 50000):
+            step_price = 50
+        elif (current_price < 100000):
+            step_price = 100
+        elif (current_price < 500000):
+            if(stock_code in self.kospi_code_list):
+                step_price = 500
+            else:
+                step_price = 100
+        elif (current_price < 1000000):
+            if (stock_code in self.kospi_code_list):
+                step_price = 1000
+            else:
+                step_price = 100
+        return step_price
+
+    def getDiffTime(self, stock_code, make_time):
+        # 시간 차이 계산
+        before_hour = int(self.check_trans_time[stock_code][:2])
+        before_min = int(self.check_trans_time[stock_code][2:4])
+        before_sec = int(self.check_trans_time[stock_code][4:])
+
+        current_hour = int(make_time[:2])
+        current_min = int(make_time[2:4])
+        current_sec = int(make_time[4:])
+
+        diff_time = ((current_hour * 3600) + (current_min * 60) + current_sec) - \
+                    ((before_hour * 3600) + (before_min * 60) + before_sec)
+        return diff_time
+
+
     def checkCondition(self, data_list):
+        """
+            새로운 룰
+            - 저가가 변경 시점 부터 1분 동안 Waiting
+            - 매수세, 체결강도의 표준편차, 체결강도의 차이를 비교
+         """
+
+        if (len(data_list) == 0 or len(data_list) < 23):
+            print("Empty Data List")
+            return
+
+        """
+        Data Format
+        ['007390', '+31000', '+900', '+2.99', '23063', '714', '+61', 
+         '+31000', '+31000', '+31000', '090001', '2', '-9080814', '+31000', 
+         '+30950', '-277626313250', '-0.25', '0.04', '103', '14.70', '2', '16410', '0']
+       """
+
+        # Buy
+        stock_code = data_list[0]
+        current_price = abs(int(data_list[1]))
+        make_amount = int(data_list[6])
+        make_time = data_list[10]
+        low_price = abs(int(data_list[9]))
+        first_sell_price = abs(int(data_list[13]))
+        first_buy_price = abs(int(data_list[14]))
+        make_strong = abs(float(data_list[19]))
+
+        # 체결시간 9시 전이면 return
+        if (abs(int(make_time)) < 90000):
+            print("[before AM.9]")
+            return
+
+        # 기본 매수량
+        buy_cnt = 1
+
+        # 수익률 0.8%
+        profit_rate = 1.008
+
+        # 체결 list 건수가 아래 이상일 때
+        threshold_make_cnt = 100
+
+        # 체결강도(매수/매도)(매수세:bull_power) 의 비율이 아래 이상일 때
+        threshold_make_amount = 1
+
+        # 저가가 변경된 후 기다리는 시간 (초)
+        threshold_make_time = 60
+
+        # 현재 저가와 최우선 매수호가 사이의 변동값
+        # 1이면 저가와 최우선 매수호가가 계속 같았던 것이고
+        # 1보다 높으면 최우선 매수호가가 올라가는 중
+        threshold_div_avg_low = 1
+
+        # 체결 강도 차이가 아래 보다
+        threshold_diff_strong = 1
+
+        # 체결강도의 표준편차 기준
+        threshold_stdev_strong = 1
+
+        # 호가 단위 금액을 저장하기 위한
+        step_price = self.getStepPrice(stock_code, current_price)
+
+        # 최저가 값이 없을 때 현재 저가를 저장
+        if (not self.lowest_price.get(stock_code)):
+            print("Change Lowest price: because empty list C[%s],P[%d]" % (stock_code, low_price))
+            self.lowest_price[stock_code] = low_price
+
+        # 기존에 최저가 보다 낮은 저가가 나왔을 때 최저가 변경
+        if (self.lowest_price[stock_code] > low_price):
+            print("Change Lowest price : C[%s],P[%d]" % (stock_code, low_price))
+            self.log_edit.append("자동 매수 Flag Enable[found lowest]:C[" + stock_code + "],P["
+                                 + str(low_price) + "]")
+
+            self.code_auto_flag[stock_code] = True
+            self.lowest_price[stock_code] = low_price
+            self.trans_cnt[stock_code] = 0
+            self.trans_data[stock_code] = [0, 0]
+            self.check_trans_time[stock_code] = make_time
+            self.stdev_strong.clear()
+            self.top_buy_price.clear()
+
+        # 자동 매수 Check Flag 가 Enable 되어있고, 자동 매매 Flag 도 Enable 되어있을 때
+        if (self.code_auto_flag.get(stock_code) and self.auto_trade_flag):
+
+            # 체결 Count 저장
+            if (self.trans_cnt.get(stock_code)):
+                #self.trans_cnt[stock_code] = int(self.trans_cnt[stock_code]) + 1
+                self.trans_cnt[stock_code] += 1
+            else:
+                self.trans_cnt[stock_code] = 1
+
+            if (make_amount > 0):
+                self.trans_data[stock_code][0] += make_amount
+            else:
+                self.trans_data[stock_code][1] += abs(make_amount)
+
+            # 시간 차이 계산
+            diff_time = self.getDiffTime(stock_code, make_time)
+
+            # 최우선 매수 호가 저장
+            if (self.top_buy_price.get(stock_code)):
+                self.top_buy_price[stock_code] += first_buy_price
+            else:
+                self.top_buy_price[stock_code] = first_buy_price
+
+            # 체결강도 저장
+            if (self.stdev_strong.get(stock_code)):
+                self.stdev_strong[stock_code].append(make_strong)
+            else:
+                self.stdev_strong[stock_code] = [make_strong]
+
+            # 모니터링 시간이 threshold_make_time 을 넘겼을 때 Rule Check
+            if (diff_time > threshold_make_time):
+
+                # 매수세를 확인하기 위한
+                if (self.trans_data[stock_code][1] == 0):
+                    bull_power = 0
+                else:
+                    bull_power = (self.trans_data[stock_code][0] / self.trans_data[stock_code][1])
+
+                arr = numpy.array(self.stdev_strong.get(stock_code))
+
+                # 체결강도 표준 편차, 1보다 작은 것으로 (편차가 작은)
+                stdev_strong = numpy.std(arr)
+
+                # 체결 강도가 커지면 매수세가 높음
+                diff_strong = arr[-1] - arr[0]
+
+                # 최우선 매수 호가 평균 , 1보다 크다는 것은 매수호가가 올라간 게 1개라도 있다는 것
+                top_buy_avg = self.top_buy_price.get(stock_code) / self.trans_cnt.get(stock_code)
+
+                # 현재 저가와 최우선 매수호가 사이의 변동값
+                # 1이면 저가와 최우선 매수호가가 계속 같았던 것이고
+                # 1보다 높으면 최우선 매수호가가 올라가는 중
+
+                div_avg_low = top_buy_avg / low_price
+
+                print("Checking[%s]:cnt[%d],bull_power[%s],diff_time[%d],stdev[%s],diff_strong[%f],top_buy_avg[%s],div_avg_low[%s]"
+                      % (stock_code, self.trans_cnt[stock_code], str(bull_power), diff_time, str(stdev_strong), diff_strong, str(top_buy_avg), str(div_avg_low)))
+
+                self.log_edit.append("Checking!!:code[" + stock_code + "]")
+
+                # 진짜 Rule Check
+                if ((self.trans_cnt.get(stock_code) > threshold_make_cnt) and
+                        (bull_power >= threshold_make_amount) and
+                        (div_avg_low > threshold_div_avg_low) and
+                        (diff_strong > 0) and (diff_strong < threshold_diff_strong) and
+                        (stdev_strong < threshold_stdev_strong)):
+
+                    buy_order_price = 0
+
+                    if ((first_sell_price - first_buy_price) > step_price):
+                        buy_order_price = first_buy_price + step_price
+                    else:
+                        buy_order_price = first_sell_price
+
+                    print("매수주문!!! :" + stock_code)
+                    print("매수 주문[%s], 가격:[%d], CNT[%d], BULL[%f], diff_time[%d], diff_strong[%f]"
+                                         % (stock_code, buy_order_price, self.trans_cnt[stock_code], bull_power, diff_time, diff_strong))
+
+                    self.log_edit.append("매수 주문[%s], 가격:[%d], CNT[%d], BULL[%f], diff_time[%d], diff_strong[%f]"
+                                         % (stock_code, buy_order_price, self.trans_cnt[stock_code], bull_power, diff_time, diff_strong))
+
+                    self.log_edit.append("자동 매수 Check Flag Disable :" + stock_code)
+
+                    self.testAutoBuy(stock_code, 1, str(buy_order_price), str(buy_cnt))
+
+                    self.log_edit.append("After Autobuy function")
+
+                else:
+                    self.log_edit.append("CODE[%s]:CON1[%s],CON2[%s],CON3[%s],CON4[%s],CON5[%s],CON6[%s]" %
+                                         ( stock_code,
+                                            (self.trans_cnt.get(stock_code) > threshold_make_cnt),
+                                           (bull_power >= threshold_make_amount),
+                                           (div_avg_low > threshold_div_avg_low),
+                                           (diff_strong > 0),
+                                           (diff_strong < threshold_diff_strong),
+                                           (stdev_strong < threshold_stdev_strong)
+                                           ) )
+                    print("S================================================================")
+                    print("CODE[%s]:CON1[%s],CON2[%s],CON3[%s],CON4[%s],CON5[%s],CON6[%s]" %
+                                         ( stock_code,
+                                            (self.trans_cnt.get(stock_code) > threshold_make_cnt),
+                                           (bull_power >= threshold_make_amount),
+                                           (div_avg_low > threshold_div_avg_low),
+                                           (diff_strong > 0),
+                                           (diff_strong < threshold_diff_strong),
+                                           (stdev_strong < threshold_stdev_strong)
+                                           ) )
+
+                    if not (self.trans_cnt.get(stock_code) > threshold_make_cnt):
+                        print("Code[%s]:CON1:ARG1[%d]:ARG2[%d]" % (self.trans_cnt.get(stock_code), threshold_make_cnt))
+
+                    if not (bull_power >= threshold_make_amount):
+                        print("Code[%s]:CON2:ARG1[%f]:ARG2[%d]" % (bull_power, threshold_make_amount))
+
+                    if not (div_avg_low > threshold_div_avg_low):
+                        print("Code[%s]:CON3:ARG1[%f]:ARG2[%d]" % (div_avg_low, threshold_div_avg_low))
+
+                    if not (diff_strong > 0):
+                        print("Code[%s]:CON4:ARG1[%f]:ARG2[%d]" % (diff_strong, 0))
+
+                    if not (diff_strong < threshold_diff_strong):
+                        print("Code[%s]:CON5:ARG1[%f]:ARG2[%d]" % (diff_strong, threshold_diff_strong))
+
+                    if not (stdev_strong < threshold_stdev_strong):
+                        print("Code[%s]:CON6:ARG1[%f]:ARG2[%d]" % (stdev_strong, threshold_stdev_strong))
+
+                    print("E================================================================")
+
+
+                # 초기화
+                self.code_auto_flag[stock_code] = False
+                self.trans_cnt[stock_code] = 0
+                self.trans_data[stock_code] = [0, 0]
+                self.stdev_strong.clear()
+                self.top_buy_price.clear()
+
+        # Sell
+        if (self.auto_trade_flag):
+
+            for stock_list in self.opw00018Data['stocks']:
+
+                # 잔고 조회 후에 stock 이 존재하면
+                if (stock_list[0] == ("A" + stock_code)):
+
+                    # 매입가 대비 1% 가 오른 현재 가격이면 매도 주문
+                    if ((int(stock_list[3]) * profit_rate) <= current_price):
+                        self.log_edit.append("매입가 대비 " + str(profit_rate) +
+                                             " 상승: " + stock_code)
+                        sell_order_price = 0
+
+                        if ((first_sell_price - first_buy_price) > step_price):
+                            sell_order_price = first_buy_price + step_price
+                        else:
+                            sell_order_price = first_buy_price
+
+                        # 기존에 매도 주문 내역이 없으면 바로 매도 주문
+                        if (not self.sell_order_list.get(str("A" + stock_code))):
+                            self.testAutoBuy(stock_code, 2, str(sell_order_price), stock_list[2])
+                            self.sell_order_list[str("A" + stock_code)] = int(stock_list[2])
+                            self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
+                                                 ", 수량: " + stock_list[2])
+
+                        # 기존에 매도 주문 내역이 있고, 매도 주문을 낼 수 있는 잔량이 있으면 매도 주문
+                        elif ((int(stock_list[2]) - self.sell_order_list[str("A" + stock_code)]) > 0):
+                            self.testAutoBuy(stock_code, 2, str(sell_order_price), stock_list[2])
+                            self.sell_order_list[str("A" + stock_code)] = self.sell_order_list[
+                                                                              str("A" + stock_code)] + int(
+                                stock_list[2])
+                            self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
+                                                 ", 수량: " + stock_list[2])
+
+                        # 매도 할 수 있는 잔고가 없을 때
+                        else:
+                            print("매도 할 수 있는 잔고가 없습니다.")
+                            self.log_edit.append("매도 잔고 없음: " + stock_code)
+
+                # count  #stock_list[2]
+                # 매입가 #stock_list[3]
+
+
+    def checkConditionBackup(self, data_list):
 
         if (len(data_list) == 0 or len(data_list) < 23):
             print("empty")
@@ -1180,7 +1548,7 @@ class StockWindow(QMainWindow):
 
                         # 기존에 매도 주문 내역이 없으면 바로 매도 주문
                         if(not self.sell_order_list.get(str("A" + stock_code))):
-                            self.testAutoBuy(stock_code, 2, str(first_sell_price), stock_list[2])
+                            self.testAutoBuy(stock_code, 2, str(sell_order_price), stock_list[2])
                             self.sell_order_list[str("A" + stock_code)] = int(stock_list[2])
                             self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
                                                  ", 수량: " + stock_list[2])
@@ -1193,7 +1561,7 @@ class StockWindow(QMainWindow):
 
                         # 기존에 매도 주문 내역이 있고, 매도 주문을 낼 수 있는 잔량이 있으면 매도 주문
                         elif ( (int(stock_list[2]) - self.sell_order_list[str("A" + stock_code)]) > 0):
-                            self.testAutoBuy(stock_code, 2, str(first_sell_price), stock_list[2])
+                            self.testAutoBuy(stock_code, 2, str(sell_order_price), stock_list[2])
                             self.sell_order_list[str("A" + stock_code)] = self.sell_order_list[str("A" + stock_code)] + int(stock_list[2])
                             self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
                                                  ", 수량: " + stock_list[2])
@@ -1212,6 +1580,7 @@ class StockWindow(QMainWindow):
                 # 매입가 #stock_list[3]
 
     def testAutoBuy(self, stock_code, order_type, price, amount):
+
         type = {1: "신규매수", 2: "신규매도", 3: "매수취소", 4: "매도취소", 5: "매수정정", 6: "매도정정"}
 
         self.log_edit.append(str(datetime.today()) + " 주문유형:" + type[order_type] + ", " + stock_code + "," + price + "," + amount)
