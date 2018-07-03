@@ -1231,8 +1231,8 @@ class StockWindow(QMainWindow):
         # 수익률 0.8%
         profit_rate = 1.008
 
-        # 손절매 -3%
-        loss_rate = 0.97
+        # 손절매 -2%
+        loss_rate = 0.98
 
         # 체결 list 건수가 아래 이상일 때
         threshold_make_cnt = 100
@@ -1798,7 +1798,8 @@ class StockWindow(QMainWindow):
                     #    priority_buy = value
 
                 # Rule Check for automation trade
-                self.checkCondition(data)
+                if(self.auto_trade_flag):
+                    self.checkCondition(data)
 
                 #print(data)
                 #self.f.write(str(data) + "\n")
