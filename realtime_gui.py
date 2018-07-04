@@ -1627,8 +1627,8 @@ class StockWindow(QMainWindow):
                     if ( ((bought_price * profit_rate) <= current_price) or
                             ((bought_price * loss_rate) >= current_price)  ):
 
-                        self.log_edit.append("매도[%s]: 매입가[%d] - 현재가[%d] = [%d]" %
-                                             (stock_code, bought_price, current_price, int(bought_price-current_price)) )
+                        self.log_edit.append("매도[%s]: 현재가[%d] - 매입가[%d] = [%d]" %
+                                             (stock_code,  current_price, bought_price, int(current_price-bought_price)) )
                         sell_order_price = 0
 
                         if ((first_sell_price - first_buy_price) > step_price):
