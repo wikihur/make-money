@@ -406,11 +406,24 @@ class StockWindow(QMainWindow):
         self.realtimeList = []
 
         ### 계좌 정보
-        # 모의투자 서버 계좌
-        self.account_num = "8103771211"
-        self.account_pass = "0000"
-        #self.account_num = "8106726111"
-        #self.account_pass = "0000"
+        file_account = "account_info.txt"
+        self.account_num = ""
+        self.account_pass = ""
+
+        try:
+            with open(file_account, "r") as f_account:
+                for line in f_account.readlines():
+                    split_line = line.split(":")
+                    if(split_line[0] == "ACCOUNT_NUMBER"):
+                        self.account_num = ''.join(split_line[1].splitlines())
+                    elif(split_line[0] == "ACCOUNT_PASS"):
+                        self.account_pass = ''.join(split_line[1].splitlines())
+
+        except FileNotFoundError as e:
+            print(str(e))
+            print("계좌 정보를 파일에 입력하세요")
+            exit(-1)
+
 
         # 비동기 방식으로 동작되는 이벤트를 동기화(순서대로 동작) 시킬 때
         self.loginLoop = None
@@ -435,14 +448,14 @@ class StockWindow(QMainWindow):
 
         # Setting Windows
         win_width = 800
-        win_height = 650
+        win_height = 750
         win_x = 100
         win_y = 100
 
         base_x = 10
         base_y = 10
 
-        self.setWindowTitle("Make Money Window")
+        self.setWindowTitle("Make Money Ver.1.0")
         self.setGeometry(win_x, win_y, win_width, win_height)
 
         label = QLabel('Log print', self)
@@ -476,11 +489,16 @@ class StockWindow(QMainWindow):
         btn_real_start_total.move(win_width / 3, win_height / 16 + 120)
         btn_real_start_total.clicked.connect(self.btn_total_real_start_clicked)
 
+        btn_real_stop_total = QPushButton("Total 실시간 중지", self)
+        btn_real_stop_total.move(win_width / 3, win_height / 16 + 160)
+        btn_real_stop_total.clicked.connect(self.btn_total_real_stop_clicked)
+
+
         reged_code = QLabel('등록된코드: ', self)
         reged_code.move(win_width / 3 + 120 , base_y)
 
         self.listWidget = QListWidget(self)
-        self.listWidget.setGeometry(win_width / 3 + 120, win_height / 16, 120, 150)
+        self.listWidget.setGeometry(win_width / 3 + 120, win_height / 16, 120, 180)
         self.listWidget.itemClicked.connect(self.item_click)
 
         order_price = QLabel('주문가격: ', self)
@@ -496,6 +514,20 @@ class StockWindow(QMainWindow):
         self.amount_edit = QLineEdit(self)
         self.amount_edit.setGeometry(win_width / 2 + 200, win_height / 16 + 80, 60,30)
         self.amount_edit.setText("")
+
+        profit_label = QLabel('설정수익률: ', self)
+        profit_label.move(win_width / 2 + 130, win_height / 16 + 120)
+
+        self.profit_edit = QLineEdit(self)
+        self.profit_edit.setGeometry(win_width / 2 + 200, win_height / 16 + 120, 60,30)
+        self.profit_edit.setText("0.8")
+
+        loss_label = QLabel('설정손실률: ', self)
+        loss_label.move(win_width / 2 + 130, win_height / 16 + 160)
+
+        self.loss_edit = QLineEdit(self)
+        self.loss_edit.setGeometry(win_width / 2 + 200, win_height / 16 + 160, 60,30)
+        self.loss_edit.setText("2")
 
 
         btn_test_order_buy = QPushButton("매수 테스트", self)
@@ -517,6 +549,10 @@ class StockWindow(QMainWindow):
         btn_simulation_test = QPushButton("시뮬레이션", self)
         btn_simulation_test.move(win_width - 120, win_height / 8 + 160)
         btn_simulation_test.clicked.connect(self.btn_simulation_test_clicked)
+
+        btn_get_high_low =  QPushButton("저가근접조회", self)
+        btn_get_high_low.move(win_width / 2, win_height / 2 - 140)
+        btn_get_high_low.clicked.connect(self.btn_get_high_low_clicked)
 
         btn_query_account = QPushButton("계좌잔고 조회", self)
         btn_query_account.move(win_width / 3, win_height/2 - 100)
@@ -557,7 +593,7 @@ class StockWindow(QMainWindow):
         self.db_checkbox = QCheckBox("DB Save", self)
         self.db_checkbox.move(win_width - 220, base_y + 20)
         self.db_checkbox.resize(100, 30)
-        self.db_checkbox.setChecked(True)
+        self.db_checkbox.setChecked(False)
         self.db_checkbox.stateChanged.connect(self.checkDBState)
 
         self.simulation_checkbox = QCheckBox("Simulation", self)
@@ -568,13 +604,6 @@ class StockWindow(QMainWindow):
 
         self.createKiwoomInstance()
         self.setSignalSlots()
-
-        #self.ohlcv = {'날짜': [], '체결시간(HHMMSS)': [], '체결가': [], '전일대비': [], '등락율': [],
-        #              '최우선매도호가': [], '최우선매수호가': [], '체결량': [], '누적체결량': [],
-        #              '누적거래대금': [], '시가': [], '고가': [], '저가': [], '전일대비기호': [],
-        #              '전일거래량대비(계약,주)': [], '거래대금증감': [], '전일거래량대비(비율)': [],
-        #              '거래회전율': [], '거래비용': [], '체결강도': [], '시가총액(억)': [],
-        #              '장구분': [], 'KO접근도': []}
 
         database = "c:/kiwoom_db/market_price.db"
         self.conn = sqlite3.connect(database)
@@ -634,7 +663,7 @@ class StockWindow(QMainWindow):
         self.csv_row_cnt = 0
 
         # DB를 저장할지에 대한 Flag
-        self.db_flag = True
+        self.db_flag = False
 
     def checkBoxState(self):
         if self.auto_trade_checkbox.isChecked() == True:
@@ -984,10 +1013,28 @@ class StockWindow(QMainWindow):
         for f in code_list:
             self.set_real_start(f)
 
+    def btn_total_real_stop_clicked(self):
+
+        if self.simulation_flag:
+            self.realtimeList.clear()
+            self.listWidget.clear()
+            self.listWidget.addItems(self.realtimeList)
+
+        if not self.getConnectState():
+            print("로그인 후 사용하세요")
+            self.log_edit.append("로그인 후 사용하세요.")
+            return
+
+        for code in self.realtimeList:
+            self.setRealRemove(self.screenNo, code)
+            self.realtimeList.remove(code)
+
+        self.realtimeList.clear()
+        self.listWidget.clear()
+        self.listWidget.addItems(self.realtimeList)
+
 
     def set_real_start(self, code):
-        #code = self.code_edit.text()
-        newornot = ""
 
         if self.simulation_flag:
             self.realtimeList.append(code)
@@ -1053,6 +1100,11 @@ class StockWindow(QMainWindow):
     def btn_real_stop_clicked(self):
         code = self.code_edit.text()
 
+        if self.simulation_flag:
+            self.realtimeList.remove(code)
+            self.listWidget.clear()
+            self.listWidget.addItems(self.realtimeList)
+
         if not self.getConnectState():
             print("로그인 후 사용하세요")
             self.log_edit.append("로그인 후 사용하세요.")
@@ -1097,6 +1149,30 @@ class StockWindow(QMainWindow):
         self.setInputValue("조회구분", "2")
 
         self.commRqData("예수금상세현황요청", "opw00001", 0, "0101")
+
+    def btn_get_high_low_clicked(self):
+        self.log_edit.append("저가근접조회")
+
+        if not self.getConnectState():
+            print("로그인 후 사용하세요")
+            self.log_edit.append("로그인 후 사용하세요.")
+            return
+
+        # 고저구분 = 1:고가, 2:저가
+        # 근접율 = 05:0.5 10:1.0, 15:1.5, 20:2.0. 25:2.5, 30:3.0
+        # 시장구분 = 000:전체, 001:코스피, 101:코스닥
+        # 거래량구분 = 00000:전체조회, 00010:만주이상, 00050:5만주이상, 00100:10만주이상, 00150:15만주이상, 00200:20만주이상, 00300:30만주이상, 00500:50만주이상, 01000:백만주이상
+        # 종목조건 = 0:전체조회,1:관리종목제외, 3:우선주제외, 5:증100제외, 6:증100만보기, 7:증40만보기, 8:증30만보기
+        # 신용조건 = 0:전체조회, 1:신용융자A군, 2:신용융자B군, 3:신용융자C군, 4:신용융자D군, 9:신용융자전체
+
+        self.setInputValue("고저구분", "2")
+        self.setInputValue("근접율", "10")
+        self.setInputValue("시장구분", "000")
+        self.setInputValue("거래량구분", "00000")
+        self.setInputValue("종목조건", "1")
+        self.setInputValue("신용조건", "1")
+
+        self.commRqData("저가근접조회", "OPT10018", 0, "0101")
 
     # 매수 테스트 함수
     def btn_test_order_buy_clicked(self):
@@ -1419,10 +1495,12 @@ class StockWindow(QMainWindow):
         buy_def_price = 100000
 
         # 수익률 0.8%
-        profit_rate = 1.008
+        #profit_rate = 1.008
+        profit_rate = 1.0 + abs(float(self.profit_edit.text()) / 100)
 
-        # 손절매 -3%
-        loss_rate = 0.97
+        # 손절매 -2%
+        #loss_rate = 0.97
+        loss_rate = 1.0 - abs(float(self.loss_edit.text()) / 100)
 
         # 체결 list 건수가 아래 이상일 때
         threshold_make_cnt = 100
@@ -1463,8 +1541,6 @@ class StockWindow(QMainWindow):
         # 기존에 최저가 보다 낮은 저가가 나왔을 때 최저가 변경
         if (self.lowest_price[stock_code] > low_price):
             print("Change Lowest price : C[%s],P[%d]" % (stock_code, low_price))
-            self.log_edit.append("자동 매수 Flag Enable[found lowest]:C[" + stock_code + "],P["
-                                 + str(low_price) + "]")
 
             self.code_auto_flag[stock_code] = True
             self.lowest_price[stock_code] = low_price
@@ -1539,8 +1615,6 @@ class StockWindow(QMainWindow):
                 print("Checking[%s]:cnt[%d],bull_power[%s],diff_time[%d],stdev[%s],diff_strong[%f],top_buy_avg[%s],div_avg_low[%s]"
                       % (stock_code, self.trans_cnt[stock_code], str(bull_power), diff_time, str(stdev_strong), diff_strong, str(top_buy_avg), str(div_avg_low)))
 
-                self.log_edit.append("Checking!!:code[" + stock_code + "]")
-
                 # 진짜 Rule Check
                 if ((self.trans_cnt.get(stock_code) > threshold_make_cnt) and
                         (bull_power >= threshold_make_amount) and
@@ -1563,8 +1637,6 @@ class StockWindow(QMainWindow):
 
                     self.log_edit.append("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], diff_strong[%f]"
                                          % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time, diff_strong))
-
-                    self.log_edit.append("자동 매수 Check Flag Disable :" + stock_code)
 
                     if(not self.simulation_flag):
                         self.testAutoBuy(stock_code, 1, str(buy_order_price), str(buy_cnt))
@@ -1601,15 +1673,6 @@ class StockWindow(QMainWindow):
 
 
                 else:
-                    #self.log_edit.append("CODE[%s]:CON1[%s],CON2[%s],CON3[%s],CON4[%s],CON5[%s],CON6[%s]" %
-                    #                     ( stock_code,
-                    #                        (self.trans_cnt.get(stock_code) > threshold_make_cnt),
-                    #                       (bull_power >= threshold_make_amount),
-                    #                       (div_avg_low > threshold_div_avg_low),
-                    #                       (diff_strong > 0),
-                    #                       (diff_strong < threshold_diff_strong),
-                    #                       (stdev_strong < threshold_stdev_strong)
-                    #                       ) )
                     print("S================================================================")
                     print("CODE[%s]:CON1[%s],CON2[%s],CON3[%s],CON4[%s],CON5[%s],CON6[%s]" %
                                          ( stock_code,
@@ -1737,7 +1800,6 @@ class StockWindow(QMainWindow):
         """
 
         try:
-            #print("receiveRealData:({})".format(realType))
 
             if realType not in RealType.REALTYPE:
                 return
@@ -1767,10 +1829,7 @@ class StockWindow(QMainWindow):
                         ohlcv[RealType.REALTYPE[realType][fid]].append(value)
 
                     data.append(value)
-                    # if(RealType.REALTYPE[realType][fid] == "체결가"):
-                    #    current_price = abs(int(value))
-                    # elif (RealType.REALTYPE[realType][fid] == "최우선매수호가"):
-                    #    priority_buy = value
+
 
                 # Rule Check for automation trade
                 if(self.auto_trade_flag):
@@ -1856,9 +1915,9 @@ class StockWindow(QMainWindow):
         self.kiwoom_api.dynamicCall("SetRealReg(QString, QString, QString, QString)",
                          screenNo, codes, fids, realRegType)
 
-        result = ""
-        result = " 실시간체결정보 받기 시작: " + codes
-        self.log_edit.append(result)
+        #result = ""
+        #result = " 실시간체결정보 받기 시작: " + codes
+        #self.log_edit.append(result)
         #self.listWidget.addItems(widget_list)
 
     def setRealRemove(self, screenNo, code):
@@ -1883,10 +1942,10 @@ class StockWindow(QMainWindow):
         print("실시간 데이터 요청 중지:" + code)
         self.kiwoom_api.dynamicCall("SetRealRemove(QString, QString)", screenNo, code)
 
-        result = ""
-        result = " 실시간체결정보 받기 중지: " + code
+        #result = ""
+        #result = " 실시간체결정보 받기 중지: " + code
 
-        self.log_edit.append(result)
+        #self.log_edit.append(result)
         #self.listWidget.addItems(widget_list)
 
     def GetServerGubun(self):
@@ -2156,6 +2215,8 @@ class StockWindow(QMainWindow):
             self.transaction_info_edit.append(trans_str_list)
 
             self.opwDataReset()
+
+            self.sell_order_list.clear()
             for i in range(cnt):
                 orderList = []
 
@@ -2170,11 +2231,39 @@ class StockWindow(QMainWindow):
                     trans_info_list = trans_info_list + value + "\t"
 
                 self.transaction_info_edit.append(trans_info_list)
-
                 self.opw00007Data['orderList'].append(orderList)
 
+                if(orderList[2] == "매도"):
+                    # 종목 번호: orderList[1]
+                    # 주문 잔량: orderList[8]
+                    if (self.sell_order_list.get(orderList[1])):
+                        self.sell_order_list[orderList[1]] += int(orderList[8])
+                    else:
+                        self.sell_order_list[orderList[1]] = int(orderList[8])
+
             print(self.opw00007Data)
+            print(self.sell_order_list)
             self.transaction_date_label.setText(str(datetime.today()))
+
+        elif requestName == "저가근접조회":
+            print("저가근접조회!!!")
+
+            self.btn_total_real_stop_clicked()
+
+            for stock_list in self.opw00018Data['stocks']:
+                self.set_real_start(stock_list[0][1:])
+
+            stock_amount = len(self.opw00018Data['stocks'])
+            cnt = self.getRepeatCnt(trCode, requestName)
+
+            if(stock_amount + cnt > 100):
+                cnt = 100 - stock_amount
+
+            for i in range(cnt):
+                value = self.commGetData(trCode, "", requestName, i, "종목코드")
+                self.set_real_start(value)
+
+            print("저가근접 List Count: %d" % (cnt))
 
     def getChejanData(self, fid):
         """
@@ -2223,12 +2312,13 @@ class StockWindow(QMainWindow):
 
             self.log_edit.append("체결 통보 : " + code + ", 주문번호: " + order_num + ", 체결량: " + str(amount))
             self.btn_query_account_clicked()
+            self.btn_query_order_clicked()
 
             # 체결된 수량 만큼 sell_order_list 에서 뺌
-            if(self.sell_order_list.get(code)):
-                self.sell_order_list[code] = self.sell_order_list[code] - amount
-                print("Sell Order List!!")
-                print(self.sell_order_list)
+            #if(self.sell_order_list.get(code)):
+            #    self.sell_order_list[code] = self.sell_order_list[code] - amount
+            #    print("Sell Order List!!")
+            #    print(self.sell_order_list)
 
         self.f_log.write(self.getChejanData(913) + "\n")
         for fid in fids:
