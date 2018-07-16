@@ -406,24 +406,8 @@ class StockWindow(QMainWindow):
         self.realtimeList = []
 
         ### 계좌 정보
-        file_account = "account_info.txt"
-        self.account_num = ""
-        self.account_pass = ""
-
-        try:
-            with open(file_account, "r") as f_account:
-                for line in f_account.readlines():
-                    split_line = line.split(":")
-                    if(split_line[0] == "ACCOUNT_NUMBER"):
-                        self.account_num = ''.join(split_line[1].splitlines())
-                    elif(split_line[0] == "ACCOUNT_PASS"):
-                        self.account_pass = ''.join(split_line[1].splitlines())
-
-        except FileNotFoundError as e:
-            print(str(e))
-            print("계좌 정보를 파일에 입력하세요")
-            exit(-1)
-
+        self.account_num = "8106726111"
+        self.account_pass = "0000"
 
         # 비동기 방식으로 동작되는 이벤트를 동기화(순서대로 동작) 시킬 때
         self.loginLoop = None
@@ -455,7 +439,7 @@ class StockWindow(QMainWindow):
         base_x = 10
         base_y = 10
 
-        self.setWindowTitle("Make Money Ver.1.0")
+        self.setWindowTitle("Make Money Test Ver.0.1")
         self.setGeometry(win_x, win_y, win_width, win_height)
 
         label = QLabel('Log print', self)
@@ -550,9 +534,9 @@ class StockWindow(QMainWindow):
         btn_simulation_test.move(win_width - 120, win_height / 8 + 160)
         btn_simulation_test.clicked.connect(self.btn_simulation_test_clicked)
 
-        btn_get_low =  QPushButton("저가근접조회", self)
-        btn_get_low.move((win_width / 2) - 30, win_height / 2 - 140)
-        btn_get_low.clicked.connect(self.btn_get_low_clicked)
+        btn_get_high_low =  QPushButton("저가근접조회", self)
+        btn_get_high_low.move((win_width / 2) - 30, win_height / 2 - 140)
+        btn_get_high_low.clicked.connect(self.btn_get_low_clicked)
 
         btn_get_high = QPushButton("고가근접조회", self)
         btn_get_high.move((win_width / 2) + 80, win_height / 2 - 140)
@@ -614,7 +598,7 @@ class StockWindow(QMainWindow):
         self.log_edit.append("DB 접속 완료")
 
         # second data log
-        logfile_name = str(datetime.now().strftime('%Y%m%d')) + "_LOG.txt"
+        logfile_name = str(datetime.now().strftime('%Y%m%d')) + "_LOG_test_ver.txt"
         self.f_log = open(logfile_name, "a", encoding='utf-8')
 
         # 최저가 저장을 위한
@@ -983,6 +967,7 @@ class StockWindow(QMainWindow):
                         "000210","000100","026960","047050","069960"
                      ]
 
+
         # KOSDAQ
         self.kosdaq_100 = [   "091990","215600","086900","130960","084990",
                         "028300","253450","068760","151910","263750",
@@ -1016,7 +1001,7 @@ class StockWindow(QMainWindow):
                         "950170", "140410", "078020", "086390", "032190"
                      ]
 
-        for f in self.kospi_100:
+        for f in self.kosdaq_100:
             self.set_real_start(f)
 
     def btn_total_real_stop_clicked(self):
@@ -1062,7 +1047,7 @@ class StockWindow(QMainWindow):
                 # 처음 등록 할 때
                 newornot = "0"
 
-            if(len(self.realtimeList) > 99):
+            if (len(self.realtimeList) > 99):
                 print("100 개 초과")
                 return
 
@@ -1177,7 +1162,7 @@ class StockWindow(QMainWindow):
         self.setInputValue("고저구분", "2")
         self.setInputValue("근접율", "10")
         self.setInputValue("시장구분", "000")
-        self.setInputValue("거래량구분", "00100")
+        self.setInputValue("거래량구분", "00000")
         self.setInputValue("종목조건", "1")
         self.setInputValue("신용조건", "1")
 
@@ -2043,7 +2028,7 @@ class StockWindow(QMainWindow):
             formatData = '{:-,.2f}'.format(f)
 
         elif percent == 2:
-            f = float(data) / 100
+            f = float(data)
             formatData = '{:-,.2f}'.format(f)
 
         return formatData
@@ -2266,8 +2251,7 @@ class StockWindow(QMainWindow):
                 self.transaction_info_edit.append(trans_info_list)
                 self.opw00007Data['orderList'].append(orderList)
 
-                # TODO: different between real server and virtual server
-                if(orderList[2] == "현금매도"):
+                if(orderList[2] == "매도"):
                     # 종목 번호: orderList[1]
                     # 주문 잔량: orderList[8]
                     if (self.sell_order_list.get(orderList[1])):
@@ -2275,7 +2259,9 @@ class StockWindow(QMainWindow):
                     else:
                         self.sell_order_list[orderList[1]] = int(orderList[8])
 
+            print("계좌별주문체결내역")
             print(self.opw00007Data)
+            print("Sell Order")
             print(self.sell_order_list)
             self.transaction_date_label.setText(str(datetime.today()))
 
@@ -2299,7 +2285,7 @@ class StockWindow(QMainWindow):
                 value = self.commGetData(trCode, "", requestName, i, "종목코드")
                 self.set_real_start(value)
 
-            if(len(self.realtimeList) < 100):
+            if (len(self.realtimeList) < 100):
                 for code in self.kospi_100:
                     self.set_real_start(code)
 
@@ -2332,6 +2318,7 @@ class StockWindow(QMainWindow):
 
             print("고가근접 List Count: %d" % (cnt))
             print("실시간종목 Count: %d" % (len(self.realtimeList)))
+
 
 
     def getChejanData(self, fid):
