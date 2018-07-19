@@ -453,6 +453,10 @@ class StockClass():
         self.sell_amount = 0
 
 
+        self.file_step = 0
+        self.file_threshold_make = 0
+
+        self.external_set = False
 
     def getDiffTime(self, stock_code, make_time):
         # 시간 차이 계산
@@ -578,11 +582,17 @@ class StockClass():
         threshold_amount = 1
 
         threshold_time = 60
-
         step_price_level = 3
 
+
         # 체결강도(매수/매도)(매수세:bull_power) 의 비율이 아래 이상일 때
-        threshold_make_amount = 8
+        threshold_make_amount = 5
+
+        if(self.external_set):
+            step_price_level = self.file_step
+            threshold_make_amount =  self.file_threshold_make
+
+        self.file_threshold_make = threshold_make_amount
 
         # Step Price 가 변경된 후 기다리는 시간 (초)
         threshold_make_time = 30
@@ -1051,18 +1061,27 @@ if __name__ == "__main__":
     #code_list = ["000660", "005930"]
     #code_list = ["005930"]
     #code_list = ["005380"]
+    #code_list = ["068270"]
 
     filename = "C:/Users/User/Desktop/시세/Data/000810.csv"
 
     if (len(sys.argv) == 2):
         filename = sys.argv[1]
 
-    price = 0
+    summary_file_name = str(datetime.now().strftime('%Y%m%d')) + "_Summary.txt"
+    summary_f = open(summary_file_name, "a")
+
+    c_main.external_set = True
+    c_main.file_step = 3
+    c_main.file_threshold_make = 5
+
+    summary_f.write("Step[%d], Bull[%d]\n\n" % (c_main.file_step, c_main.file_threshold_make))
     for code in code_list:
 
-        filename = "C:/Users/User/Desktop/시세/Data/" + code + ".csv"
+        filename = "./data/" + code + ".csv"
         # filename = code + ".csv"
-        f = open(filename, "r", encoding='UTF8')
+        #f = open(filename, "r", encoding='UTF8')
+        f = open(filename, "r")
         rdr = csv.reader(f)
 
         # code = filename[30:36]
@@ -1072,11 +1091,24 @@ if __name__ == "__main__":
             line.append(code)
             c_main.checkCondition(line)
 
+        summary_f.write("CODE[%s]::ACC_TOTAL[%5s]=====> [GET][%3d][LOST][%3d][PROFIT][%10d]:::::[TOTAL_BUY][%10d],[TOTAL_SELL][%10d]\n" %
+                    (code, "GET" if c_main.total_profit_price > 0 else "LOST", c_main.total_get_cnt, c_main.total_lost_cnt, c_main.total_profit_price, c_main.total_buy, c_main.total_sell))
+
         # Today 정보를 파일에 쓰기 위해
         line[0] = "END"
         c_main.checkCondition(line)
 
         f.close()
 
-    c_main.f.write("ALL_TOTAL_PROFIT[%d], ALL_BUY[%d], ALL_SELL[%d]\n" %
-                   (c_main.all_total_profit_price, c_main.all_total_buy, c_main.all_total_sell))
+    per = 0
+    if(c_main.all_total_buy > 0):
+        per = (c_main.all_total_profit_price/c_main.all_total_buy * 100)
+    else:
+        per = 0
+
+    c_main.f.write("ALL_TOTAL_PROFIT[%d], ALL_BUY[%d], ALL_SELL[%d], RATE[%f]\n" %
+                   (c_main.all_total_profit_price, c_main.all_total_buy, c_main.all_total_sell, per ))
+    summary_f.write("=========================================================================================================\n")
+    summary_f.write("========== ALL_TOTAL_PROFIT[%d], ALL_BUY[%d], ALL_SELL[%d], RATE[%f]==========\n" %
+                   (c_main.all_total_profit_price, c_main.all_total_buy, c_main.all_total_sell, per ))
+    summary_f.write("=========================================================================================================\n\n\n\n")

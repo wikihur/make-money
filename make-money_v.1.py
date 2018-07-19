@@ -1476,8 +1476,8 @@ class StockWindow(QMainWindow):
 
         """
         Data Format
-        ['007390', '+31000', '+900', '+2.99', '23063', '714', '+61', 
-         '+31000', '+31000', '+31000', '090001', '2', '-9080814', '+31000', 
+        ['007390', '+31000', '+900', '+2.99', '23063', '714', '+61',
+         '+31000', '+31000', '+31000', '090001', '2', '-9080814', '+31000',
          '+30950', '-277626313250', '-0.25', '0.04', '103', '14.70', '2', '16410', '0']
        """
 
@@ -2136,7 +2136,7 @@ class StockWindow(QMainWindow):
     def opwDataReset(self):
         """ 잔고 및 보유종목 데이터 초기화 """
         self.opw00001Data = 0
-        self.opw00018Data = {'accountEvaluation': [], 'stocks': []}
+        #self.opw00018Data = {'accountEvaluation': [], 'stocks': []}
         self.opw00007Data = {'orderList': []}
 
     def receiveTrData(self, screenNo, requestName, trCode, recordName, inquiry,
