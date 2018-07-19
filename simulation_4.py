@@ -452,11 +452,13 @@ class StockClass():
         self.buy_amount = 0
         self.sell_amount = 0
 
-
         self.file_step = 0
         self.file_threshold_make = 0
 
         self.external_set = False
+
+        self.average_price = []
+
 
     def getDiffTime(self, stock_code, make_time):
         # 시간 차이 계산
@@ -546,6 +548,7 @@ class StockClass():
                 self.total_lost_cnt = 0
                 self.total_profit_price = 0
                 self.csv_row_cnt = 0
+                self.average_price.clear()
 
             self.before_date = split_data[0]
             self.lowest_price.clear()
@@ -560,8 +563,8 @@ class StockClass():
             print("=============================================")
 
         # 체결시간 9시 전이면 return
-        if (abs(int(data_list[1])) < 90000):
-            print("[before am 9]")
+        if ((abs(int(data_list[1])) < 90000) or (abs(int(data_list[1])) > 153000)):
+            print("[before am 9] or [after pm 3:30]")
             return
 
         buy_cnt = "1"
@@ -660,6 +663,7 @@ class StockClass():
                 self.after_price[stock_code] < current_price):
             self.after_price[stock_code] = current_price
 
+        self.average_price.append(current_price)
 
         #checking_step = diff_sell_buy - before_diff_sell_buy
         #before_rate = float(self.before_stock_data[stock_code][4])
@@ -1059,6 +1063,7 @@ if __name__ == "__main__":
     """
     #code_list = ["207940"]
     #code_list = ["000660", "005930"]
+    #code_list = ["000660"]
     #code_list = ["005930"]
     #code_list = ["005380"]
     #code_list = ["068270"]
@@ -1071,44 +1076,66 @@ if __name__ == "__main__":
     summary_file_name = str(datetime.now().strftime('%Y%m%d')) + "_Summary.txt"
     summary_f = open(summary_file_name, "a")
 
+
     c_main.external_set = True
-    c_main.file_step = 3
-    c_main.file_threshold_make = 5
+    c_main.file_step = 4
+    c_main.file_threshold_make = 6
 
-    summary_f.write("Step[%d], Bull[%d]\n\n" % (c_main.file_step, c_main.file_threshold_make))
-    for code in code_list:
 
-        filename = "./data/" + code + ".csv"
-        # filename = code + ".csv"
-        #f = open(filename, "r", encoding='UTF8')
-        f = open(filename, "r")
-        rdr = csv.reader(f)
+    for i in range(2,7):
 
-        # code = filename[30:36]
+        for j in range(1,11):
+            c_main.file_step = i
+            c_main.file_threshold_make = j
 
-        for line in rdr:
-            #        print(line)
-            line.append(code)
-            c_main.checkCondition(line)
+            summary_f.write("Step[%d], Bull[%d]\n\n" % (c_main.file_step, c_main.file_threshold_make))
+            for code in code_list:
 
-        summary_f.write("CODE[%s]::ACC_TOTAL[%5s]=====> [GET][%3d][LOST][%3d][PROFIT][%10d]:::::[TOTAL_BUY][%10d],[TOTAL_SELL][%10d]\n" %
-                    (code, "GET" if c_main.total_profit_price > 0 else "LOST", c_main.total_get_cnt, c_main.total_lost_cnt, c_main.total_profit_price, c_main.total_buy, c_main.total_sell))
+                filename = "C:/Users/User/Desktop/시세/Data/" + code + ".csv"
+                # filename = code + ".csv"
+                f = open(filename, "r", encoding='UTF8')
+                #f = open(filename, "r")
+                rdr = csv.reader(f)
 
-        # Today 정보를 파일에 쓰기 위해
-        line[0] = "END"
-        c_main.checkCondition(line)
+                # code = filename[30:36]
 
-        f.close()
+                for line in rdr:
+                    #        print(line)
+                    line.append(code)
+                    c_main.checkCondition(line)
 
-    per = 0
-    if(c_main.all_total_buy > 0):
-        per = (c_main.all_total_profit_price/c_main.all_total_buy * 100)
-    else:
-        per = 0
+                average_price = numpy.array(c_main.average_price)
+                price_avg = numpy.mean(average_price)
 
-    c_main.f.write("ALL_TOTAL_PROFIT[%d], ALL_BUY[%d], ALL_SELL[%d], RATE[%f]\n" %
-                   (c_main.all_total_profit_price, c_main.all_total_buy, c_main.all_total_sell, per ))
-    summary_f.write("=========================================================================================================\n")
-    summary_f.write("========== ALL_TOTAL_PROFIT[%d], ALL_BUY[%d], ALL_SELL[%d], RATE[%f]==========\n" %
-                   (c_main.all_total_profit_price, c_main.all_total_buy, c_main.all_total_sell, per ))
-    summary_f.write("=========================================================================================================\n\n\n\n")
+                per = 0
+                if (c_main.total_buy > 0):
+                    per = (c_main.total_profit_price / c_main.total_buy * 100)
+                else:
+                    per = 0
+
+                summary_f.write("CODE[%s]::AVG[%7d]::::ACC_TOTAL[%5s]=====> [GET][%3d][LOST][%3d][PROFIT][%10d]RATE[%.2f]:::::[TOTAL_BUY][%10d],[TOTAL_SELL][%10d]\n" %
+                            (code, int(price_avg), "GET" if c_main.total_profit_price > 0 else "LOST", c_main.total_get_cnt, c_main.total_lost_cnt,
+                             c_main.total_profit_price, per, c_main.total_buy, c_main.total_sell))
+
+                # Today 정보를 파일에 쓰기 위해
+                line[0] = "END"
+                c_main.checkCondition(line)
+
+                f.close()
+
+            per = 0
+            if(c_main.all_total_buy > 0):
+                per = (c_main.all_total_profit_price/c_main.all_total_buy * 100)
+            else:
+                per = 0
+
+            c_main.f.write("ALL_TOTAL_PROFIT[%d], ALL_BUY[%d], ALL_SELL[%d], RATE[%f]\n" %
+                           (c_main.all_total_profit_price, c_main.all_total_buy, c_main.all_total_sell, per ))
+            summary_f.write("=========================================================================================================\n")
+            summary_f.write("========== ALL_TOTAL_PROFIT[%d], ALL_BUY[%d], ALL_SELL[%d], RATE[%f]==========\n" %
+                           (c_main.all_total_profit_price, c_main.all_total_buy, c_main.all_total_sell, per ))
+            summary_f.write("=========================================================================================================\n\n\n\n")
+
+            c_main.all_total_profit_price = 0
+            c_main.all_total_buy = 0
+            c_main.all_total_sell = 0
