@@ -106,7 +106,7 @@ if __name__ == "__main__":
     code = "214270"
 
     # opt10003 TR 요청
-    for i in range(10800):
+    for i in range(1):
         kiwoom.set_input_value("종목코드", code)
         kiwoom.comm_rq_data("opt10003_req", "opt10003", 0, "0101")
         time.sleep(TR_REQ_TIME_INTERVAL)

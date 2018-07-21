@@ -1476,8 +1476,8 @@ class StockWindow(QMainWindow):
 
         """
         Data Format
-        ['007390', '+31000', '+900', '+2.99', '23063', '714', '+61',
-         '+31000', '+31000', '+31000', '090001', '2', '-9080814', '+31000',
+        ['007390', '+31000', '+900', '+2.99', '23063', '714', '+61', 
+         '+31000', '+31000', '+31000', '090001', '2', '-9080814', '+31000', 
          '+30950', '-277626313250', '-0.25', '0.04', '103', '14.70', '2', '16410', '0']
        """
 
@@ -1539,7 +1539,7 @@ class StockWindow(QMainWindow):
         threshold_make_cnt = 100
 
         # 체결강도(매수/매도)(매수세:bull_power) 의 비율이 아래 이상일 때
-        threshold_make_amount = 1
+        threshold_make_amount = 1.5
 
         # 저가가 변경된 후 기다리는 시간 (초)
         threshold_make_time = 60
@@ -1560,7 +1560,9 @@ class StockWindow(QMainWindow):
 
         # 최저가 값이 없을 때 현재 저가를 저장
         if (not self.lowest_price.get(stock_code)):
-            print("Change Lowest price: because empty list C[%s],P[%d]" % (stock_code, low_price))
+            print("Change Lowest price: because empty list DATE[%s], C[%s], P[%d]" %
+                  (str(datetime.today()), stock_code, low_price))
+
             self.code_auto_flag[stock_code] = True
             self.lowest_price[stock_code] = low_price
             self.trans_cnt[stock_code] = 0
@@ -1573,7 +1575,7 @@ class StockWindow(QMainWindow):
 
         # 기존에 최저가 보다 낮은 저가가 나왔을 때 최저가 변경
         if (self.lowest_price[stock_code] > low_price):
-            print("Change Lowest price : C[%s],P[%d]" % (stock_code, low_price))
+            print("Change Lowest price : DATE[%s], C[%s],P[%d]" % (str(datetime.today()), stock_code, low_price))
 
             self.code_auto_flag[stock_code] = True
             self.lowest_price[stock_code] = low_price
@@ -1590,7 +1592,6 @@ class StockWindow(QMainWindow):
 
             # 체결 Count 저장
             if (self.trans_cnt.get(stock_code)):
-                #self.trans_cnt[stock_code] = int(self.trans_cnt[stock_code]) + 1
                 self.trans_cnt[stock_code] += 1
             else:
                 self.trans_cnt[stock_code] = 1
@@ -1645,6 +1646,7 @@ class StockWindow(QMainWindow):
 
                 div_avg_low = top_buy_avg / low_price
 
+                print(str(datetime.today()))
                 print("Checking[%s]:cnt[%d],bull_power[%s],diff_time[%d],stdev[%s],diff_strong[%f],top_buy_avg[%s],div_avg_low[%s]"
                       % (stock_code, self.trans_cnt[stock_code], str(bull_power), diff_time, str(stdev_strong), diff_strong, str(top_buy_avg), str(div_avg_low)))
 
@@ -1706,6 +1708,7 @@ class StockWindow(QMainWindow):
 
 
                 else:
+                    print(str(datetime.today()))
                     print("S================================================================")
                     print("CODE[%s]:CON1[%s],CON2[%s],CON3[%s],CON4[%s],CON5[%s],CON6[%s]" %
                                          ( stock_code,

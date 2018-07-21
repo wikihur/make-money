@@ -21,7 +21,7 @@ class MyWindow(QMainWindow):
         self.listWidget.setGeometry(10, 10, 170, 130)
 
     def btn1_clicked(self):
-        ret = self.kiwoom.dynamicCall("GetCodeListByMarket(QString)", ["0"])
+        ret = self.kiwoom.dynamicCall("GetCodeListByMarket(QString)", ["10"])
         kospi_code_list = ret.split(';')
         kospi_code_name_list = []
 

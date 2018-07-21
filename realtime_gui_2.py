@@ -2121,7 +2121,7 @@ class StockWindow(QMainWindow):
     def opwDataReset(self):
         """ 잔고 및 보유종목 데이터 초기화 """
         self.opw00001Data = 0
-        self.opw00018Data = {'accountEvaluation': [], 'stocks': []}
+        #self.opw00018Data = {'accountEvaluation': [], 'stocks': []}
         self.opw00007Data = {'orderList': []}
 
     def receiveTrData(self, screenNo, requestName, trCode, recordName, inquiry,

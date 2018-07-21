@@ -433,48 +433,6 @@ class StockClass():
 
         self.before_date = ""
 
-        self.trans_sum = {}
-
-        self.profit_price = 0
-        self.total_profit_price = 0
-        self.all_total_profit_price = 0
-        self.get_cnt = 0
-        self.total_get_cnt = 0
-        self.lost_cnt = 0
-        self.total_lost_cnt = 0
-
-        self.total_buy = 0
-        self.total_sell = 0
-
-        self.all_total_sell = 0
-        self.all_total_buy = 0
-
-        self.buy_amount = 0
-        self.sell_amount = 0
-
-        self.file_step = 0
-        self.file_threshold_make = 0
-
-        self.external_set = False
-
-        self.average_price = []
-
-
-    def getDiffTime(self, stock_code, make_time):
-        # 시간 차이 계산
-        before_hour = int(self.check_trans_time[stock_code][:2])
-        before_min = int(self.check_trans_time[stock_code][2:4])
-        before_sec = int(self.check_trans_time[stock_code][4:])
-
-        current_hour = int(make_time[:2])
-        current_min = int(make_time[2:4])
-        current_sec = int(make_time[4:])
-
-        diff_time = ((current_hour * 3600) + (current_min * 60) + current_sec) - \
-                    ((before_hour * 3600) + (before_min * 60) + before_sec)
-        return diff_time
-
-
     def checkCondition(self, data_list):
         self.csv_row_cnt += 1
         if (len(data_list) == 0 or len(data_list) < 24):
@@ -527,28 +485,11 @@ class StockClass():
 
             self.f.write(
                 "[%s]::::::::[RETENTION_CNT][%s]:[RETENTION_PRICE][%s]:[CUR][%d][EV-PRICE][%d]:[EV-PER][%f]\n\n" %
-                ( self.before_date,  str(retention_cnt), str(retention_price), current_price,
+                (self.before_date, str(retention_cnt), str(retention_price), current_price,
                  ev_price, ev_per))
-            self.f.write("[DAY_TOTAL]==============> CODE[%s][GET][%d][LOST][%d][PRICE][%d]:::::[BUY][%d],[SELL][%d]\n" %
-                         (stock_code, self.get_cnt, self.lost_cnt, self.profit_price, self.buy_amount, self.sell_amount))
-            self.f.write("ACC_TOTAL======================> CODE[%s][GET][%d][LOST][%d][PRICE][%d]:::::[TOTAL_BUY][%d],[TOTAL_SELL][%d]\n\n" %
-                         (stock_code, self.total_get_cnt, self.total_lost_cnt, self.total_profit_price, self.total_buy, self.total_sell))
-
-            self.get_cnt = 0
-            self.lost_cnt = 0
-            self.profit_price = 0
-            self.buy_amount = 0
-            self.sell_amount = 0
 
             if (data_list[0] == "END"):
                 self.opw00018Data['stocks'] = []
-                self.total_buy = 0
-                self.total_sell = 0
-                self.total_get_cnt = 0
-                self.total_lost_cnt = 0
-                self.total_profit_price = 0
-                self.csv_row_cnt = 0
-                self.average_price.clear()
 
             self.before_date = split_data[0]
             self.lowest_price.clear()
@@ -556,23 +497,21 @@ class StockClass():
             self.after_buy_flag = False
             self.first_buy_price.clear()
             self.after_price.clear()
-            self.trans_sum.clear()
-
             print("=============================================")
             print("Clear lowest price")
             print("=============================================")
 
         # 체결시간 9시 전이면 return
-        if ((abs(int(data_list[1])) < 90000) or (abs(int(data_list[1])) > 153000)):
-            print("[before am 9] or [after pm 3:30]")
+        if (abs(int(data_list[1])) < 90000):
+            print("[before am 9]")
             return
 
-        buy_cnt = "1"
+        buy_cnt = "10"
 
         # 1% 수익 목표
         profit_rate = 1.01
 
-        loss_rate = 0.97
+        loss_rate = 0.985
 
         # 체결강도 차이가 0.1 이상일 때 주문
         # diff_strong = 0.1
@@ -585,20 +524,8 @@ class StockClass():
         threshold_amount = 1
 
         threshold_time = 60
-        step_price_level = 3
 
-
-        # 체결강도(매수/매도)(매수세:bull_power) 의 비율이 아래 이상일 때
-        threshold_make_amount = 5
-
-        if(self.external_set):
-            step_price_level = self.file_step
-            threshold_make_amount =  self.file_threshold_make
-
-        self.file_threshold_make = threshold_make_amount
-
-        # Step Price 가 변경된 후 기다리는 시간 (초)
-        threshold_make_time = 30
+        step_price_level = 4
 
         # Buy
         stock_code = data_list[23]
@@ -613,7 +540,6 @@ class StockClass():
 
         diff_rate = float(data_list[4])
 
-        make_time = data_list[1]
 
         diff_sell_buy = first_sell_price - first_buy_price
 
@@ -663,205 +589,10 @@ class StockClass():
                 self.after_price[stock_code] < current_price):
             self.after_price[stock_code] = current_price
 
-        self.average_price.append(current_price)
 
-        #checking_step = diff_sell_buy - before_diff_sell_buy
-        #before_rate = float(self.before_stock_data[stock_code][4])
+        checking_step = diff_sell_buy - before_diff_sell_buy
+        before_rate = float(self.before_stock_data[stock_code][4])
 
-        if(diff_sell_buy >= (step_price * step_price_level)):
-            self.code_auto_flag[stock_code] = True
-            self.change_time_data[stock_code] = data_list
-            self.before_csv_row_cnt = self.csv_row_cnt
-            self.check_trans_time[stock_code] = make_time
-            self.trans_data[stock_code] = [0, 0]
-
-
-        if( self.code_auto_flag.get(stock_code) ):
-
-            change_time_diff_sell_buy = abs(int(self.change_time_data[stock_code][5])) - abs(int(self.change_time_data[stock_code][6]))
-            change_time_trans_amount = int(self.change_time_data[stock_code][7])
-
-            before_rate = float(self.change_time_data[stock_code][4])
-
-            # 체결량 저장
-            if (self.trans_sum.get(stock_code)):
-                self.trans_sum[stock_code].append(trans_amount)
-            else:
-                self.trans_sum[stock_code] = [trans_amount]
-
-            if (trans_amount > 0):
-                self.trans_data[stock_code][0] += trans_amount
-            else:
-                self.trans_data[stock_code][1] += abs(trans_amount)
-
-            # 시간 차이 계산
-            diff_time = self.getDiffTime(stock_code, make_time)
-
-            # 모니터링 시간이 threshold_make_time 을 넘겼을 때 Rule Check
-            if (diff_time > threshold_make_time):
-
-                # 매수세를 확인하기 위한
-                if (self.trans_data[stock_code][1] == 0):
-                    bull_power = 0
-                else:
-                    bull_power = (self.trans_data[stock_code][0] / self.trans_data[stock_code][1])
-
-
-                if((bull_power >= threshold_make_amount)):
-
-                    print("Buy!!!!!!")
-
-                    temp_cnt = int(100000 / current_price)
-
-                    if(temp_cnt > 0):
-                        buy_cnt = str(temp_cnt)
-                    else:
-                        buy_cnt = "1"
-
-                    buy_order_price = 0
-                    if ((first_sell_price - first_buy_price) > step_price):
-                        buy_order_price = first_buy_price + step_price
-                    else:
-                        buy_order_price = first_sell_price
-
-                    # self.testAutoBuy(stock_code, 1, str(buy_order_price), buy_cnt)
-
-                    print("BUY order: " + stock_code + ", row: " + str(self.csv_row_cnt) +
-                          ", price: " + str(buy_order_price))
-
-                    self.after_buy_flag = True
-                    if (not self.first_buy_price.get(stock_code)):
-                        self.first_buy_price[stock_code] = buy_order_price
-
-                    self.f.write("============================================================\n")
-                    self.f.write("[%s][BUY ]:FLAG_LINE[%d]:LINE[%d]:\tCODE[%s]:\tORDER_PRICE[%d]:\t:BEFORE_SELL_BUY[%d]\t:DIFF_SELL_BUY[%d]:\tDIFF_RATE[%f]\n" %
-                                 (split_data[0], self.before_csv_row_cnt, self.csv_row_cnt, stock_code, buy_order_price, change_time_diff_sell_buy, diff_sell_buy,
-                                  (diff_rate - before_rate)))
-                    self.f.write("============================================================\n")
-                    self.buy_amount += (buy_order_price * int(buy_cnt))
-                    self.total_buy += (buy_order_price * int(buy_cnt))
-                    self.all_total_buy += (buy_order_price * int(buy_cnt))
-
-                    if (self.opw00018Data['stocks']):
-                        retention_cnt = int(self.opw00018Data['stocks'][0][2])
-                        retention_price = int(self.opw00018Data['stocks'][0][3])
-                        total_cnt = retention_cnt + int(buy_cnt)
-                        avg_price = int(
-                            ((retention_price * retention_cnt) + (buy_order_price * int(buy_cnt))) / total_cnt)
-                        list_data = ["A" + stock_code, "SIMULATION", str(total_cnt), str(avg_price)]
-                        self.opw00018Data = {'accountEvaluation': [], 'stocks': []}
-                        self.opw00018Data['stocks'].append(list_data)
-                        # self.opw00018Data['stocks'] = [stock_code, "SIMULATION", str(total_cnt), str(avg_price)]
-
-                    else:  # empty
-                        list_data = ["A" + stock_code, "SIMULATION", buy_cnt, str(buy_order_price)]
-                        # self.opw00018Data['stocks'] = list_data
-                        self.opw00018Data['stocks'].append(list_data)
-
-                    # else:
-                    #    self.f.write("[" + split_data[0] + "][NOT-BUY ]:LINE[" + str(self.csv_row_cnt) +
-                    #                 "]:\tCODE[" + stock_code + "]:\tORDER_PRICE[" +  "]:\t" +
-                    #                "diff_step[" + str(checking) + "\n" +
-                    #                 "============================================================\n")
-
-
-                    # 초기화
-                    self.code_auto_flag[stock_code] = False
-                    self.trans_cnt[stock_code] = 0
-                    self.trans_data[stock_code] = [0, 0]
-                    self.stdev_strong.clear()
-                    self.top_buy_price.clear()
-                    self.change_time_data[stock_code] = []
-                    self.trans_sum.clear()
-
-        self.before_stock_data[stock_code] = data_list
-        # print(self.lowest_price)
-
-        # Sell
-        if (self.auto_trade_flag):
-
-            for stock_list in self.opw00018Data['stocks']:
-                # 잔고 조회 후에 stock 이 존재하면
-
-                if (stock_list[0] == ("A" + stock_code)):
-                    # 매입가 대비 1% 가 오른 현재 가격이면 매도 주문
-
-                    if (((int(stock_list[3]) * profit_rate) <= current_price) or
-                            ((int(stock_list[3]) * loss_rate) >= current_price)):
-
-                        sell_order_price = 0
-
-                        if ((int(stock_list[3]) * loss_rate) >= current_price):
-                            self.f.write(
-                                "!! LOST !! ============================================================\n")
-                            self.lost_cnt += 1
-                            self.total_lost_cnt += 1
-                        else:
-                            self.f.write("< GET > ============================================================\n")
-                            self.get_cnt += 1
-                            self.total_get_cnt += 1
-
-                        if ((first_sell_price - first_buy_price) > step_price):
-                            sell_order_price = first_buy_price + step_price
-                        else:
-                            sell_order_price = first_buy_price
-
-                        # 기존에 매도 주문 내역이 없으면 바로 매도 주문
-                        if (not self.sell_order_list.get(str("A" + stock_code))):
-                            # self.testAutoBuy(stock_code, 2, str(first_sell_price), stock_list[2])
-                            self.sell_order_list[str("A" + stock_code)] = int(stock_list[2])
-                            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                            print("Sell!!! current_price: " + str(current_price))
-                            print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-
-                            print("Sell order: " + stock_code + ", row: " + str(self.csv_row_cnt) +
-                                  ", Price: " + str(sell_order_price) +
-                                  ", amount: " + stock_list[2])
-                            # print("[Sell] :" + stock_code + "\n")
-                            # print("[Sell]!!!!!" + stock_code + ", " + str(sell_order_price) + "," + stock_list[2])
-                            # print( self.sell_order_list)
-                            print(str(self.sell_order_list))
-                            self.f.write("============================================================\n" +
-                                         "[" + split_data[0] + "][SELL]:LINE[" + str(self.csv_row_cnt) +
-                                         "]:\tCODE[" + stock_code + "]:" +
-                                         "\tPRICE[" + str(sell_order_price) + "]:" +
-                                         "\tAMOUNT[" + stock_list[2] + "]:" +
-                                         "\tPROFIT[" + str(
-                                (sell_order_price - int(stock_list[3])) * int(stock_list[2])) + "]:" +
-                                         "\n" + "============================================================\n")
-
-                            self.profit_price += ((sell_order_price - int(stock_list[3])) * int(stock_list[2]))
-                            self.total_profit_price += ((sell_order_price - int(stock_list[3])) * int(stock_list[2]))
-                            self.all_total_profit_price += ((sell_order_price - int(stock_list[3])) * int(stock_list[2]))
-                            self.sell_amount += (sell_order_price * int(stock_list[2]))
-                            self.total_sell += (sell_order_price * int(stock_list[2]))
-                            self.all_total_sell += (sell_order_price * int(stock_list[2]))
-
-                            # 무조건 체결된다고 보고...
-                            self.sell_order_list[str("A" + stock_code)] -= int(stock_list[2])
-                            self.opw00018Data = {'accountEvaluation': [], 'stocks': []}
-                            print(str(self.sell_order_list))
-
-                        # 기존에 매도 주문 내역이 있고, 매도 주문을 낼 수 있는 잔량이 있으면 매도 주문
-                        elif ((int(stock_list[2]) - self.sell_order_list[str("A" + stock_code)]) > 0):
-                            # self.testAutoBuy(stock_code, 2, str(first_sell_price), stock_list[2])
-                            self.sell_order_list[str("A" + stock_code)] = self.sell_order_list[
-                                                                              str("A" + stock_code)] + int(
-                                stock_list[2])
-                            print("Sell order: " + stock_code + ", 가격: " + str(sell_order_price) +
-                                  ", 수량: " + stock_list[2])
-
-                            # print("[Sell]!!!!!" + stock_code + ", " + str(sell_order_price) + "," + stock_list[2])
-                            print(str(self.sell_order_list) + "\n")
-                            self.f.write("!!!!!!!!!!!!!!!!!!!!!!!!!! SELL ORDER !!!!!!!!!!!!!!!!!!!!\n")
-
-                        # 매도 할 수 있는 잔고가 없을 때
-                        else:
-                            print("매도 할 수 있는 잔고가 없습니다.")
-                            print("매도 잔고 없음: " + stock_code)
-
-
-"""
 
         if (checking_step <= -(step_price * step_price_level) and
             diff_rate > before_rate):
@@ -993,7 +724,7 @@ class StockClass():
 
                 # count  #stock_list[2]
                 # 매입가 #stock_list[3]
-"""
+
 
 if __name__ == "__main__":
 
@@ -1047,10 +778,9 @@ if __name__ == "__main__":
                  "009150", "000030", "002790", "024110", "035720",
                  "036570", "009540", "004020", "010130", "030200",
                  "000720", "139480", "034220", "021240", "004990",
-                 "271560", "267250", "032640", "036460", "069500" ]
+                 "271560", "267250", "032640", "036460", "069500",
 
-
-    code_list = ["091990", "215600", "086900", "084990", "151910",
+                 "091990", "215600", "086900", "084990", "151910",
                  "028300", "130960", "253450", "068760", "003670",
                  "263750", "078340", "950160", "016170", "145020",
                  "095700", "034230", "036490", "041960", "178920",
@@ -1062,81 +792,28 @@ if __name__ == "__main__":
                  "102940", "069080", "025980", "112040", "200130"
                  ]
 
-    #code_list = ["207940"]
-    #code_list = ["000660", "005930"]
-    #code_list = ["000660"]
-    #code_list = ["005930"]
-    #code_list = ["005380"]
-    #code_list = ["068270"]
-
+    code_list = ["207940"]
     filename = "C:/Users/User/Desktop/시세/Data/000810.csv"
 
     if (len(sys.argv) == 2):
         filename = sys.argv[1]
 
-    summary_file_name = str(datetime.now().strftime('%Y%m%d')) + "_Summary.txt"
-    summary_f = open(summary_file_name, "a")
+    for code in code_list:
 
+        filename = "C:/Users/User/Desktop/시세/Data/" + code + ".csv"
+        # filename = code + ".csv"
+        f = open(filename, "r", encoding='UTF8')
+        rdr = csv.reader(f)
 
-    c_main.external_set = True
-    c_main.file_step = 4
-    c_main.file_threshold_make = 6
+        # code = filename[30:36]
 
+        for line in rdr:
+            #        print(line)
+            line.append(code)
+            c_main.checkCondition(line)
 
-    for i in range(2,8):
+        # Today 정보를 파일에 쓰기 위해
+        line[0] = "END"
+        c_main.checkCondition(line)
 
-        for j in range(1,11):
-            c_main.file_step = i
-            c_main.file_threshold_make = j
-
-            summary_f.write("Step[%d], Bull[%d]\n\n" % (c_main.file_step, c_main.file_threshold_make))
-            for code in code_list:
-
-                filename = "C:/Users/User/Desktop/시세/Data/" + code + ".csv"
-                # filename = code + ".csv"
-                f = open(filename, "r", encoding='UTF8')
-                #f = open(filename, "r")
-                rdr = csv.reader(f)
-
-                # code = filename[30:36]
-
-                for line in rdr:
-                    #        print(line)
-                    line.append(code)
-                    c_main.checkCondition(line)
-
-                average_price = numpy.array(c_main.average_price)
-                price_avg = numpy.mean(average_price)
-
-                per = 0
-                if (c_main.total_buy > 0):
-                    per = (c_main.total_profit_price / c_main.total_buy * 100)
-                else:
-                    per = 0
-
-                summary_f.write("CODE[%s]::AVG[%7d]::::ACC_TOTAL[%5s]=====> [GET][%3d][LOST][%3d][PROFIT][%10d]RATE[%.2f]:::::[TOTAL_BUY][%10d],[TOTAL_SELL][%10d]\n" %
-                            (code, int(price_avg), "GET" if c_main.total_profit_price > 0 else "LOST", c_main.total_get_cnt, c_main.total_lost_cnt,
-                             c_main.total_profit_price, per, c_main.total_buy, c_main.total_sell))
-
-                # Today 정보를 파일에 쓰기 위해
-                line[0] = "END"
-                c_main.checkCondition(line)
-
-                f.close()
-
-            per = 0
-            if(c_main.all_total_buy > 0):
-                per = (c_main.all_total_profit_price/c_main.all_total_buy * 100)
-            else:
-                per = 0
-
-            c_main.f.write("ALL_TOTAL_PROFIT[%d], ALL_BUY[%d], ALL_SELL[%d], RATE[%f]\n" %
-                           (c_main.all_total_profit_price, c_main.all_total_buy, c_main.all_total_sell, per ))
-            summary_f.write("=========================================================================================================\n")
-            summary_f.write("========== ALL_TOTAL_PROFIT[%d], ALL_BUY[%d], ALL_SELL[%d], RATE[%f]==========\n" %
-                           (c_main.all_total_profit_price, c_main.all_total_buy, c_main.all_total_sell, per ))
-            summary_f.write("=========================================================================================================\n\n\n\n")
-
-            c_main.all_total_profit_price = 0
-            c_main.all_total_buy = 0
-            c_main.all_total_sell = 0
+        f.close()

@@ -551,13 +551,13 @@ if __name__ == "__main__":
         # 파미셀 : 005690
         # 삼성전자 : 005930
 
-        kiwoom.setRealReg("6002", "000660", "10;228", "0")
-        kiwoom.setRealReg("6002", "005930", "10;228", "1")
-        kiwoom.setRealReg("6002", "214270", "10;228", "1")
-        kiwoom.setRealReg("6002", "007390", "10;228", "1")
-        kiwoom.setRealReg("6002", "044180", "10;228", "1")
-        kiwoom.setRealReg("6002", "014200", "10;228", "1")
-        kiwoom.setRealReg("6002", "005690", "10;228", "1")
+        kiwoom.setRealReg("6002", "000660", "20;10;228", "0")
+        #kiwoom.setRealReg("6002", "005930", "10;228", "1")
+        #kiwoom.setRealReg("6002", "214270", "10;228", "1")
+        #kiwoom.setRealReg("6002", "007390", "10;228", "1")
+        #kiwoom.setRealReg("6002", "044180", "10;228", "1")
+        #kiwoom.setRealReg("6002", "014200", "10;228", "1")
+        #kiwoom.setRealReg("6002", "005690", "10;228", "1")
 
 
     except Exception as e:

@@ -199,6 +199,9 @@ class StockClass():
         # 체결강도
         before_strong = abs(float(self.before_stock_data[stock_code][19]))
 
+        # 최우선매도호가 - 최우선매수호가
+        before_diff_sell_buy = int(self.before_stock_data[stock_code][5] - self.before_stock_data[stock_code][6])
+
         # 호가단위 금액 저장을 위한
         step_price = 0
 
