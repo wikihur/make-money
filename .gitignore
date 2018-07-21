@@ -99,3 +99,8 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# account_info.txt, log, simulation txt
+*account_info.txt
+*LOG*.txt
+*SIM*.txt
