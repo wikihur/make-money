@@ -505,7 +505,7 @@ class StockWindow(QMainWindow):
 
         self.profit_edit = QLineEdit(self)
         self.profit_edit.setGeometry(win_width / 2 + 200, win_height / 16 + 120, 60,30)
-        self.profit_edit.setText("0.8")
+        self.profit_edit.setText("1")
 
         loss_label = QLabel('설정손실률: ', self)
         loss_label.move(win_width / 2 + 130, win_height / 16 + 160)
@@ -605,8 +605,11 @@ class StockWindow(QMainWindow):
         # 최저가 저장을 위한
         self.lowest_price = {}
 
-        # 자동매매 Flag (코드별)
+        # 자동매매 Flag (코드별)_Rule1
         self.code_auto_flag = {}
+
+        # 자동매매 Flag (코드별)_Rule2
+        self.code_auto_flag_rule_bull = {}
 
         # 자동매매 Flag
         self.auto_trade_flag = True
@@ -620,10 +623,14 @@ class StockWindow(QMainWindow):
         # 매수세 체크를 위해 Flag 가 시작된 시간 저장을 위한
         self.check_trans_time = {}
 
+        self.check_trans_time_rule_bull = {}
+
         # 체결 count 가 만족할 때 매수/매도 세를 저장하기 위한
         # trans_data[stock_code][0] = 매수체결량
-        # trans_data[stock_code][0] = 매도체결량
+        # trans_data[stock_code][1] = 매도체결량
         self.trans_data = {}
+
+        self.trans_data_rule_bull = {}
 
         # Sell order list
         self.sell_order_list = {}
@@ -710,326 +717,98 @@ class StockWindow(QMainWindow):
 
     def btn_total_real_start_clicked(self):
 
-        # 시총 100위
-        # 07/03 기준
-        """
-            KOSPI
-
-            삼성전자	005930
-            SK하이닉스	000660
-            셀트리온	068270
-            삼성전자우	005935
-            삼성바이오로직스	207940
-
-            POSCO	005490
-            현대차	005380
-            NAVER	035420
-            LG화학	051910
-            KB금융	105560
-
-            삼성물산	028260
-            LG생활건강	051900
-            신한지주	055550
-            한국전력	015760
-            현대모비스	012330
-
-            삼성생명	032830
-            SK텔레콤	017670
-            아모레퍼시픽	090430
-            SK	034730
-            SK이노베이션	096770
-
-            삼성에스디에스	018260
-            KT&G	033780
-            삼성SDI	006400
-            LG전자	066570
-            넷마블	251270
-
-            삼성화재	000810
-            기아차	000270
-            하나금융지주	086790
-            LG	003550
-            S-Oil	010950
-
-            삼성전기	009150
-            롯데케미칼	011170
-            우리은행	000030
-            아모레G	002790
-            카카오	035720
-
-            기업은행	024110
-            엔씨소프트	036570
-            KT	030200
-            고려아연	010130
-            이마트	139480
-
-            현대중공업	009540
-            현대제철	004020
-            LG디스플레이	034220
-            롯데지주	004990
-            현대건설	000720
-
-            코웨이	021240
-            KODEX 200	069500
-            LG유플러스	032640
-            오리온	271560
-            롯데쇼핑	023530
-
-
-            현대중공업지주	267250
-            한온시스템	018880
-            한국가스공사	036460
-            강원랜드	035250
-            미래에셋대우	006800
-
-            CJ제일제당	097950
-            한국타이어	161390
-            GS	078930
-            효성	004800
-            한미약품	128940
-
-            한국금융지주	071050
-            한화생명	088350
-            삼성중공업	010140
-            호텔신라	008770
-            삼성카드	029780
-
-            현대글로비스	086280
-            DB손해보험	005830
-            CJ	001040
-            NH투자증권	005940
-            한미사이언스	008930
-
-            한국항공우주	047810
-            CJ대한통운	000120
-            에스원	012750
-            신세계	004170
-            금호석유	011780
-
-            한화케미칼	009830
-            GS건설	006360
-            KCC	002380
-            LG이노텍	011070
-            아이엔지생명	079440
-
-            현대차2우B	005387
-            두산밥캣	241560
-            GS리테일	007070
-            BGF리테일	282330
-            맥쿼리인프라	088980
-
-            현대해상	001450
-            삼성증권	016360
-            삼성엔지니어링	028050
-            BNK금융지주	138930
-            오뚜기	007310
-
-            TIGER 200	102110
-            대우조선해양	042660
-            쌍용양회	003410
-            KODEX 레버리지	122630
-            대한항공	003490
-
-            대림산업	000210
-            유한양행	000100
-            동서	026960
-            포스코대우	047050
-            현대백화점	069960
-
-            -----------------------------------------------------------
-
-            KOSDAQ
-
-            셀트리온헬스케어	091990
-            신라젠	215600
-            메디톡스	086900
-            CJ E&M	130960
-            바이로메드	084990
-
-            에이치엘비	028300
-            스튜디오드래곤	253450
-            셀트리온제약	068760
-            나노스	151910
-            펄어비스	263750
-
-            포스코켐텍	003670
-            카카오M	016170
-            휴젤	145020
-            코오롱티슈진(Reg.S)	950160
-            컴투스	078340
-
-            제넥신	095700
-            SK머티리얼즈	036490
-            파라다이스	034230
-            CJ오쇼핑	035760
-            카페24	042000
-
-            SKC코오롱PI	178920
-            코미팜	041960
-            고영	098460
-            엘앤에프	066970
-            에스에프에이	056190
-
-            원익IPS	240810
-            GS홈쇼핑	028150
-            미래컴퍼니	049950
-            솔브레인	036830
-            포스코 ICT	022100
-
-            상상인	038540
-            제일홀딩스	003380
-            리노공업	058470
-            더블유게임즈	192080
-            서울반도체	046890
-
-            에스엠	041510
-            JYP Ent.	035900
-            톱텍	108230
-            삼천당제약	000250
-            안트로젠	065660
-
-            에스모	073070
-            웹젠	069080
-            네이처셀	007390
-            이오테크닉스	039030
-            제이콘텐트리	036420
-
-            케어젠	214370
-            지트리비앤티	115450
-            콜마비앤에이치	200130
-            차바이오텍	085660
-            비에이치	090460
-
-
-
-            코오롱생명과학	102940
-            위메이드	112040
-            매일유업	267980
-            티씨케이	064760
-            에코프로	086520
-
-            씨젠	096530
-            휴온스	243070
-            오스템임플란트	048260
-            와이지엔터테인먼트	122870
-            에스티팜	237690
-
-            메디포스트	078160
-            NICE평가정보	030190
-            아난티	025980
-            엔지켐생명과학	183490
-            텔콘RF제약	200230
-
-            실리콘웍스	108320
-            KG이니시스	035600
-            동진쎄미켐	005290
-            동국제약	086450
-            휴온스글로벌	084110
-
-            아미코젠	092040
-            크리스탈	083790
-            인트론바이오	048530
-            오스코텍	039200
-            RFHIC	218410
-
-            디오	039840
-            대아티아이	045390
-            유진기업	023410
-            피에스케이	031980
-            아프리카TV	067160
-
-            코웰패션	033290
-            이녹스첨단소재	272290
-            안랩	053800
-            에이치엘비생명과학	067630
-            나스미디어	089600
-
-            모두투어	080160
-            클리오	237880
-            삼표시멘트	038500
-            CMG제약	058820
-            서부T&D	006730
-
-            바텍	043150
-            내츄럴엔도텍	168330
-            녹십자랩셀	144510
-            이지바이오	035810
-            테스	095610
-
-            JTC	950170
-            메지온	140410
-            이베스트투자증권	078020
-            유니테스트	086390
-            다우데이타	032190
-        """
-
-        self.kospi_100 = [   "005930","000660","068270","005935","207940",
-                        "005490","005380","035420","051910","105560",
-
-                        "028260","051900","055550","015760","012330",
-                        "032830","017670","090430","034730","096770",
-
-                        "018260","033780","006400","066570","251270",
-                        "000810","000270","086790","003550","010950",
-
-                        "009150","011170","000030","002790","035720",
-                        "024110","036570","030200","010130","139480",
-
-                        "009540","004020","034220","004990","000720",
-                        "021240","069500","032640","271560","023530",
-
-
-                        "267250","018880","036460","035250","006800",
-                        "097950","161390","078930","004800","128940",
-
-                        "071050","088350","010140","008770","029780",
-                        "086280","005830","001040","005940","008930",
-
-                        "047810","000120","012750","004170","011780",
-                        "009830","006360","002380","011070","079440",
-
-                        "005387","241560","007070","282330","088980",
-                        "001450","016360","028050","138930","007310",
-
-                        "102110","042660","003410","122630","003490",
-                        "000210","000100","026960","047050","069960"
-                     ]
-
-        # KOSDAQ
-        self.kosdaq_100 = [   "091990","215600","086900","130960","084990",
-                        "028300","253450","068760","151910","263750",
-
-                        "003670","016170","145020","950160","078340",
-                        "095700","036490","034230","035760","042000",
-
-                        "178920","041960","098460","066970","056190",
-                        "240810","028150","049950","036830","022100",
-
-                        "038540","003380","058470","192080","046890",
-                        "041510","035900","108230","000250","065660",
-
-                        "073070","069080","007390","039030","036420",
-                        "214370","115450","200130","085660","090460",
-
-
-                        "102940", "112040", "267980", "064760", "086520",
-                        "096530", "243070", "048260", "122870", "237690",
-
-                        "078160", "030190", "025980", "183490", "200230",
-                        "108320", "035600", "005290", "086450", "084110",
-
-                        "092040", "083790", "048530", "039200", "218410",
-                        "039840", "045390", "023410", "031980", "067160",
-
-                        "033290", "272290", "053800", "067630", "089600",
-                        "080160", "237880", "038500", "058820", "006730",
-
-                        "043150", "168330", "144510", "035810", "095610",
-                        "950170", "140410", "078020", "086390", "032190"
-                     ]
-
-        for f in self.kospi_100:
+        self.simul_list = [
+            "000120","033780","009150","028260","000720",
+            "010950","004170","005830","096770","000660",
+            "012330","006360","053800","006400","068270",
+            "023530","002790","010620","035250","161390",
+            "181710","017670","251270","128940","036460",
+            "051910","139480","000810","015760","271560",
+            "005490","130960","010130","036570","018260",
+            "047810","008930","038540","069080","178920",
+            "192080","000270","004990","009540","055550",
+            "039030","006040","004020","086790","003550",
+            "090430","058470","090460","079440","207940",
+            "007310","029780","066570","068760","215600",
+            "112040","253450" ]
+
+        for f in self.simul_list:
             self.set_real_start(f)
+
+    def set_buy_condition_each_code(self):
+        self.buy_rule = {
+            "000120": [3, 1],
+            "008770": [3, 1],
+            "009240": [3, 1],
+            "033780": [3, 1],
+            "009150": [3, 2],
+            "028260": [3, 2],
+            "084110": [3, 2],
+            "000720": [3, 3],
+            "010950": [3, 3],
+            "004170": [3, 4],
+            "005830": [3, 4],
+            "096770": [3, 4],
+            "000660": [3, 5],
+            "012330": [3, 5],
+            "067160": [3, 5],
+            "006360": [3, 6],
+            "053800": [3, 6],
+            "006400": [3, 8],
+            "068270": [3, 8],
+            "023530": [3, 9],
+            "002790": [4, 1],
+            "005380": [4, 1],
+            "010620": [4, 1],
+            "035250": [4, 1],
+            "161390": [4, 1],
+            "181710": [4, 1],
+            "017670": [4, 2],
+            "251270": [4, 2],
+            "128940": [4, 3],
+            "036460": [4, 4],
+            "051910": [4, 4],
+            "139480": [4, 4],
+            "000810": [4, 5],
+            "015760": [4, 5],
+            "271560": [4, 5],
+            "005490": [4, 6],
+            "130960": [4, 6],
+            "010130": [4, 8],
+            "036570": [4, 8],
+            "018260": [5, 1],
+            "047810": [5, 1],
+            "034230": [5, 1],
+            "067630": [5, 1],
+            "008930": [5, 2],
+            "038540": [5, 2],
+            "069080": [5, 2],
+            "178920": [5, 2],
+            "192080": [5, 2],
+            "000270": [5, 4],
+            "004990": [5, 4],
+            "009540": [5, 5],
+            "055550": [5, 5],
+            "039030": [5, 6],
+            "006040": [6, 1],
+            "004020": [6, 2],
+            "086790": [6, 2],
+            "003550": [6, 3],
+            "090430": [6, 3],
+            "058470": [6, 3],
+            "090460": [6, 3],
+            "079440": [6, 6],
+            "207940": [6, 7],
+            "007310": [7, 1],
+            "029780": [7, 1],
+            "066570": [7, 1],
+            "041510": [7, 1],
+            "068760": [7, 2],
+            "215600": [7, 3],
+            "112040": [7, 4],
+            "253450": [7, 7],
+            "140410": [7, 9]
+        }
 
     def btn_total_real_stop_clicked(self):
 
@@ -1144,6 +923,7 @@ class StockWindow(QMainWindow):
         self.commConnect()
         self.getCodeList()
         self.getAccountInfo()
+        self.set_buy_condition_each_code()
         #self.btn_query_account_clicked()
 
     # 종목 코드 받기 함수
@@ -1248,7 +1028,7 @@ class StockWindow(QMainWindow):
 
             for code in self.realtimeList:
                 self.csv_row_cnt = 0
-                filename = "C:/Users/User/Desktop/시세/Data/" + code + ".csv"
+                filename = "D:/data/" + code + ".csv"
                 # filename = code + ".csv"
                 f = open(filename, "r", encoding='UTF8')
                 rdr = csv.reader(f)
@@ -1450,6 +1230,20 @@ class StockWindow(QMainWindow):
         before_hour = int(self.check_trans_time[stock_code][:2])
         before_min = int(self.check_trans_time[stock_code][2:4])
         before_sec = int(self.check_trans_time[stock_code][4:])
+
+        current_hour = int(make_time[:2])
+        current_min = int(make_time[2:4])
+        current_sec = int(make_time[4:])
+
+        diff_time = ((current_hour * 3600) + (current_min * 60) + current_sec) - \
+                    ((before_hour * 3600) + (before_min * 60) + before_sec)
+        return diff_time
+
+    def getDiffTime_rule_bull(self, stock_code, make_time):
+        # 시간 차이 계산
+        before_hour = int(self.check_trans_time_rule_bull[stock_code][:2])
+        before_min = int(self.check_trans_time_rule_bull[stock_code][2:4])
+        before_sec = int(self.check_trans_time_rule_bull[stock_code][4:])
 
         current_hour = int(make_time[:2])
         current_min = int(make_time[2:4])
@@ -1825,6 +1619,268 @@ class StockWindow(QMainWindow):
                 # count  #stock_list[2]
                 # 매입가 #stock_list[3]
 
+    def checkCondition_rule_bull(self, data_list):
+        """
+            새로운 룰
+            - 매수, 매도 호가의 차이 크기 가 특정 시점이 될 때
+            - 매수세를 확인하여 매수, 시뮬레이션 결과를 바탕으로
+         """
+
+        if (len(data_list) == 0 or len(data_list) < 23):
+            print("Empty Data List")
+            return
+
+        if (data_list[0] == "index"):
+            print("first row")
+            return
+
+        """
+        Data Format
+        ['007390', '+31000', '+900', '+2.99', '23063', '714', '+61', 
+         '+31000', '+31000', '+31000', '090001', '2', '-9080814', '+31000', 
+         '+30950', '-277626313250', '-0.25', '0.04', '103', '14.70', '2', '16410', '0']
+       """
+
+        # Buy
+        stock_code = data_list[0]
+        current_price = abs(int(data_list[1]))
+        make_amount = int(data_list[6])
+        make_time = data_list[10]
+        low_price = abs(int(data_list[9]))
+        first_sell_price = abs(int(data_list[13]))
+        first_buy_price = abs(int(data_list[14]))
+        make_strong = abs(float(data_list[19]))
+
+        simul_date = ""
+        if(self.simulation_flag):
+            stock_code = data_list[23]
+            current_price = abs(int(data_list[2]))
+            make_amount = int(data_list[7])
+            make_time = data_list[1]
+            low_price = abs(int(data_list[12]))
+            first_sell_price = abs(int(data_list[5]))
+            first_buy_price = abs(int(data_list[6]))
+            make_strong = abs(float(data_list[19]))
+            simul_date = data_list[0]
+
+            split_data = re.split(" ", simul_date)
+            if (self.before_simul_date != split_data[0]):
+                self.code_auto_flag[stock_code] = False
+
+                if(self.lowest_price.get(stock_code)):
+                    del self.lowest_price[stock_code]
+
+                self.trans_cnt[stock_code] = 0
+                self.trans_data[stock_code] = [0, 0]
+                self.stdev_strong.clear()
+                self.top_buy_price.clear()
+                self.before_simul_date = split_data[0]
+
+
+        # 체결시간 9시 전이면 return
+        if (abs(int(make_time)) < 90000):
+            print("[before AM.9]")
+            return
+
+        # 기본 매수량
+        buy_cnt = 1
+
+        # 매수시 주문 기준 금액 (10만원)
+        buy_def_price = 100000
+
+        # 수익률 0.8%
+        #profit_rate = 1.008
+        profit_rate = 1.0 + abs(float(self.profit_edit.text()) / 100)
+
+        # 손절매 -3%
+        #loss_rate = 0.97
+        loss_rate = 1.0 - abs(float(self.loss_edit.text()) / 100)
+
+        # 체결 list 건수가 아래 이상일 때
+        threshold_make_cnt = 100
+
+        # Step Level 이 특정 Level 로 변경된 후 기다리는 시간 (초)
+        threshold_make_time = 30
+
+        # 호가 단위 금액을 저장하기 위한
+        step_price = self.getStepPrice(stock_code, current_price)
+
+        # 최우선 매도 호가 - 최우선 매수 호가 : step_level 로 비교
+        diff_sell_buy = first_sell_price - first_buy_price
+
+
+        # 각 코드 별 시뮬레이션으로 값을 가지고 있음.
+        step_price_level = self.buy_rule[stock_code][0]
+
+        # 체결강도(매수/매도)(매수세:bull_power) 의 비율이 아래 이상일 때
+        threshold_make_amount = self.buy_rule[stock_code][1]
+
+        # 최우선 매도 호가와 최우선 매수 호가 차이가 지정된 level 보다 같거나 높을 때 Enable Flag
+        if(diff_sell_buy >= (step_price * step_price_level)):
+            self.code_auto_flag_rule_bull[stock_code] = True
+            self.check_trans_time_rule_bull[stock_code] = make_time
+            self.trans_data_rule_bull[stock_code] = [0, 0]
+
+        if( self.code_auto_flag_rule_bull.get(stock_code) ):
+
+            # 매수/매도 체결량 저장
+            if(make_amount > 0):
+                self.trans_data_rule_bull[stock_code][0] += make_amount
+            else:
+                self.trans_data_rule_bull[stock_code][1] += abs(make_amount)
+
+            # 시간 차이 계산
+            diff_time = self.getDiffTime_rule_bull(stock_code, make_time)
+
+            # 모니터링 시간이 threshold_make_time 을 넘겼을 때 Rule Check
+            if (diff_time > threshold_make_time):
+
+                # 매수세를 확인하기 위한
+                if (self.trans_data_rule_bull[stock_code][1] == 0):
+                    bull_power = 0
+                else:
+                    bull_power = (self.trans_data_rule_bull[stock_code][0] / self.trans_data_rule_bull[stock_code][1])
+
+                # 매수세가 특정 이상일 때
+                if ((bull_power >= threshold_make_amount)):
+                    buy_order_price = 0
+
+                    if ((first_sell_price - first_buy_price) > step_price):
+                        buy_order_price = first_buy_price + step_price
+                    else:
+                        buy_order_price = first_sell_price
+
+                    buy_cnt = self.getBuyCnt(current_price, buy_def_price)
+
+                    print("매수주문!!! :" + stock_code)
+                    print("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d]"
+                          % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time))
+
+                    self.log_edit.append("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d]"
+                                         % (
+                                         stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power,
+                                         diff_time))
+
+                    if (not self.simulation_flag):
+                        self.testAutoBuy(stock_code, 1, str(buy_order_price), str(buy_cnt))
+                        self.f_log.write(
+                            "매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d]\n"
+                            % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time))
+                        self.f_log.write("||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
+
+                    else:
+                        # Simulation 때는 바로 사는 것으로
+                        if (self.opw00018Data['stocks']):
+                            retention_cnt = int(self.opw00018Data['stocks'][0][2])
+                            retention_price = int(self.opw00018Data['stocks'][0][3])
+                            total_cnt = retention_cnt + int(buy_cnt)
+                            avg_price = int(
+                                ((retention_price * retention_cnt) + (buy_order_price * int(buy_cnt))) / total_cnt)
+                            list_data = ["A" + stock_code, "SIMULATION", str(total_cnt), str(avg_price)]
+                            self.opw00018Data = {'accountEvaluation': [], 'stocks': []}
+                            self.opw00018Data['stocks'].append(list_data)
+
+                        else:  # empty
+                            list_data = ["A" + stock_code, "SIMULATION", buy_cnt, str(buy_order_price)]
+                            self.opw00018Data['stocks'].append(list_data)
+
+                        self.f_sim.write("============================================================\n" +
+                                         "[" + split_data[0] + "][BUY ]:LINE[" + str(self.csv_row_cnt) +
+                                         "]:\tCODE[" + stock_code + "]:\tCNT[" +
+                                         str(self.trans_cnt.get(stock_code)) + "]:\tBULL[" +
+                                         str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
+                                         "]:\tORDER_PRICE[" + str(buy_order_price) + "]:\t\n" +
+                                         "============================================================\n")
+                else:
+                    print(str(datetime.today()))
+                    print("S================================================================")
+                    print("CODE[%s]:CON1[%s]" %
+                                         ( stock_code, (bull_power >= threshold_make_amount) ) )
+
+                    print("Code[%s]:CON1:ARG1[%f]:ARG2[%f]" % (stock_code, bull_power, threshold_make_amount))
+                    print("E================================================================")
+
+                # 초기화
+                self.code_auto_flag_rule_bull[stock_code] = False
+                self.trans_data_rule_bull[stock_code] = [0, 0]
+
+
+        # Sell
+        if (self.auto_trade_flag):
+            for stock_list in self.opw00018Data['stocks']:
+
+                # 잔고 조회 후에 stock 이 존재하면
+                if (stock_list[0] == ("A" + stock_code)):
+                    # 매입가 대비 1% 가 오른 현재 가격이면 매도 주문
+                    bought_price = int(stock_list[3])
+                    if ( ((bought_price * profit_rate) <= current_price) or
+                            ((bought_price * loss_rate) >= current_price)  ):
+
+                        self.log_edit.append("매도[%s]: 현재가[%d] - 매입가[%d] = [%d]" %
+                                             (stock_code,  current_price, bought_price, int(current_price-bought_price)) )
+
+                        #self.f_log.write("매도[%s]: 현재가[%d] - 매입가[%d] = [%d]\n" %
+                        #                     (stock_code,  current_price, bought_price, int(current_price-bought_price)))
+
+                        if ((bought_price * loss_rate) >= current_price):
+                            self.f_log.write("[손절]=")
+                        else:
+                            self.f_log.write("[수익]=")
+
+                        sell_order_price = 0
+
+                        if ((first_sell_price - first_buy_price) > step_price):
+                            sell_order_price = first_buy_price + step_price
+                        else:
+                            sell_order_price = first_buy_price
+
+                        if (not self.simulation_flag):
+
+                            # 기존에 매도 주문 내역이 없으면 바로 매도 주문
+                            if (not self.sell_order_list.get(str("A" + stock_code))):
+                                self.testAutoBuy(stock_code, 2, str(sell_order_price), stock_list[2])
+                                self.sell_order_list[str("A" + stock_code)] = int(stock_list[2])
+                                self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
+                                                     ", 수량: " + str(stock_list[2]))
+                                self.f_log.write("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
+                                                     ", 수량: " + str(stock_list[2]) + "\n")
+                                self.f_log.write("||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
+
+                            # 기존에 매도 주문 내역이 있고, 매도 주문을 낼 수 있는 잔량이 있으면 매도 주문
+                            elif ((int(stock_list[2]) - self.sell_order_list[str("A" + stock_code)]) > 0):
+                                self.testAutoBuy(stock_code, 2, str(sell_order_price), stock_list[2])
+                                self.sell_order_list[str("A" + stock_code)] = self.sell_order_list[str("A" + stock_code)] +\
+                                                                              int(stock_list[2])
+                                self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
+                                                     ", 수량: " + str(stock_list[2]))
+                                self.f_log.write("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
+                                                 ", 수량: " + str(stock_list[2]) + "\n")
+                                self.f_log.write("||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
+
+                            # 매도 할 수 있는 잔고가 없을 때
+                            else:
+                                print("매도 할 수 있는 잔고가 없습니다.")
+                                self.log_edit.append("매도 잔고 없음: " + stock_code)
+
+                        else:
+                            # simulation 때
+                            print("Sell[%s]count[%s]" % (stock_code, str(stock_list[2])))
+                            self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
+                                                 ", 수량: " + str(stock_list[2]))
+
+                            self.f_sim.write("============================================================\n" +
+                                         "[" + split_data[0] + "][SELL]:LINE[" + str(self.csv_row_cnt) +
+                                         "]:\tCODE[" + stock_code + "]:" +
+                                         "\tPRICE[" + str(sell_order_price) + "]:" +
+                                         "\tAMOUNT[" + str(stock_list[2]) + "]:" +
+                                         "\tPROFIT[" + str(sell_order_price - int(stock_list[3])) + "]:" +
+                                         "\n" + "============================================================\n")
+
+                            del self.opw00018Data['stocks'][:]
+
+                # count  #stock_list[2]
+                # 매입가 #stock_list[3]
+
     def testAutoBuy(self, stock_code, order_type, price, amount):
 
         type = {1: "신규매수", 2: "신규매도", 3: "매수취소", 4: "매도취소", 5: "매수정정", 6: "매도정정"}
@@ -1881,7 +1937,8 @@ class StockWindow(QMainWindow):
 
                 # Rule Check for automation trade
                 if(self.auto_trade_flag):
-                    self.checkCondition(data)
+                    #self.checkCondition(data)
+                    self.checkCondition_rule_bull(data)
 
                 if (self.db_flag):
                     ohlcv['날짜'].append(str(datetime.today()))
