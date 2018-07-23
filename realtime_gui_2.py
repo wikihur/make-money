@@ -1001,7 +1001,7 @@ class StockWindow(QMainWindow):
                         "950170", "140410", "078020", "086390", "032190"
                      ]
 
-        for f in self.kosdaq_100:
+        for f in self.kospi_100:
             self.set_real_start(f)
 
     def btn_total_real_stop_clicked(self):

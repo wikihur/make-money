@@ -505,14 +505,14 @@ class StockWindow(QMainWindow):
 
         self.profit_edit = QLineEdit(self)
         self.profit_edit.setGeometry(win_width / 2 + 200, win_height / 16 + 120, 60,30)
-        self.profit_edit.setText("0.8")
+        self.profit_edit.setText("1")
 
         loss_label = QLabel('설정손실률: ', self)
         loss_label.move(win_width / 2 + 130, win_height / 16 + 160)
 
         self.loss_edit = QLineEdit(self)
         self.loss_edit.setGeometry(win_width / 2 + 200, win_height / 16 + 160, 60,30)
-        self.loss_edit.setText("3")
+        self.loss_edit.setText("2.7")
 
 
         btn_test_order_buy = QPushButton("매수 테스트", self)
@@ -1551,7 +1551,7 @@ class StockWindow(QMainWindow):
         threshold_make_cnt = 100
 
         # 체결강도(매수/매도)(매수세:bull_power) 의 비율이 아래 이상일 때
-        threshold_make_amount = 1.5
+        threshold_make_amount = 2
 
         # 저가가 변경된 후 기다리는 시간 (초)
         threshold_make_time = 60

@@ -474,9 +474,83 @@ class StockClass():
                     ((before_hour * 3600) + (before_min * 60) + before_sec)
         return diff_time
 
+    def set_buy_condition_each_code(self):
+        self.buy_rule = {
+            "000120": [3, 1],
+            "008770": [3, 1],
+            "009240": [3, 1],
+            "033780": [3, 1],
+            "009150": [3, 2],
+            "028260": [3, 2],
+            "084110": [3, 2],
+            "000720": [3, 3],
+            "010950": [3, 3],
+            "004170": [3, 4],
+            "005830": [3, 4],
+            "096770": [3, 4],
+            "000660": [3, 5],
+            "012330": [3, 5],
+            "067160": [3, 5],
+            "006360": [3, 6],
+            "053800": [3, 6],
+            "006400": [3, 8],
+            "068270": [3, 8],
+            "023530": [3, 9],
+            "002790": [4, 1],
+            "005380": [4, 1],
+            "010620": [4, 1],
+            "035250": [4, 1],
+            "161390": [4, 1],
+            "181710": [4, 1],
+            "017670": [4, 2],
+            "251270": [4, 2],
+            "128940": [4, 3],
+            "036460": [4, 4],
+            "051910": [4, 4],
+            "139480": [4, 4],
+            "000810": [4, 5],
+            "015760": [4, 5],
+            "271560": [4, 5],
+            "005490": [4, 6],
+            "130960": [4, 6],
+            "010130": [4, 8],
+            "036570": [4, 8],
+            "018260": [5, 1],
+            "047810": [5, 1],
+            "034230": [5, 1],
+            "067630": [5, 1],
+            "008930": [5, 2],
+            "038540": [5, 2],
+            "069080": [5, 2],
+            "178920": [5, 2],
+            "192080": [5, 2],
+            "000270": [5, 4],
+            "004990": [5, 4],
+            "009540": [5, 5],
+            "055550": [5, 5],
+            "039030": [5, 6],
+            "006040": [6, 1],
+            "004020": [6, 2],
+            "086790": [6, 2],
+            "003550": [6, 3],
+            "090430": [6, 3],
+            "058470": [6, 3],
+            "090460": [6, 3],
+            "079440": [6, 6],
+            "207940": [6, 7],
+            "007310": [7, 1],
+            "029780": [7, 1],
+            "066570": [7, 1],
+            "041510": [7, 1],
+            "068760": [7, 2],
+            "215600": [7, 3],
+            "112040": [7, 4],
+            "253450": [7, 7],
+            "140410": [7, 9]
+        }
 
     def checkCondition(self, data_list):
-        self.csv_row_cnt += 1
+
         if (len(data_list) == 0 or len(data_list) < 24):
             print("empty")
             return
@@ -572,7 +646,7 @@ class StockClass():
         # 1% 수익 목표
         profit_rate = 1.01
 
-        loss_rate = 0.97
+        loss_rate = 0.973
 
         # 체결강도 차이가 0.1 이상일 때 주문
         # diff_strong = 0.1
@@ -585,11 +659,14 @@ class StockClass():
         threshold_amount = 1
 
         threshold_time = 60
-        step_price_level = 3
 
+        self.set_buy_condition_each_code()
+        #step_price_level = 3
+        step_price_level = self.buy_rule[stock_code][0]
 
         # 체결강도(매수/매도)(매수세:bull_power) 의 비율이 아래 이상일 때
-        threshold_make_amount = 5
+        #threshold_make_amount = 5
+        threshold_make_amount = self.buy_rule[stock_code][1]
 
         if(self.external_set):
             step_price_level = self.file_step
@@ -1062,14 +1139,32 @@ if __name__ == "__main__":
                  "102940", "069080", "025980", "112040", "200130"
                  ]
 
+    code_list = [
+        "000120",              "033780",        "009150",
+        "028260",                "000720",        "010950",        "004170",
+        "005830",        "096770",        "000660",        "012330",
+        "006360",               "006400",        "068270",        "023530",
+        "002790",               "010620",        "035250",        "161390",
+        "181710",        "017670",        "251270",        "128940",        "036460",
+        "051910",        "139480",        "000810",        "015760",        "271560",
+        "005490",        "130960",        "010130",        "036570",        "018260",
+        "047810",               "008930",        "038540",
+        "069080",        "178920",        "192080",        "000270",        "004990",
+        "009540",        "055550",        "039030",        "006040",        "004020",
+        "086790",        "003550",        "090430",        "058470",        "090460",
+        "079440",        "207940",        "007310",        "029780",        "066570",
+             "068760",        "215600",        "112040",        "253450",
+    ]
+
+
     #code_list = ["207940"]
     #code_list = ["000660", "005930"]
     #code_list = ["000660"]
     #code_list = ["005930"]
     #code_list = ["005380"]
-    #code_list = ["068270"]
+    code_list = ["033780"]
 
-    filename = "C:/Users/User/Desktop/시세/Data/000810.csv"
+    filename = "D:/data/000810.csv"
 
     if (len(sys.argv) == 2):
         filename = sys.argv[1]
@@ -1079,9 +1174,61 @@ if __name__ == "__main__":
 
 
     c_main.external_set = True
-    c_main.file_step = 4
-    c_main.file_threshold_make = 6
+    c_main.file_step = 3
+    c_main.file_threshold_make = 1
 
+    summary_f.write("Step[%d], Bull[%d]\n\n" % (c_main.file_step, c_main.file_threshold_make))
+    for code in code_list:
+
+        filename = "c:/data/" + code + ".csv"
+        # filename = code + ".csv"
+        f = open(filename, "r", encoding='UTF8')
+        # f = open(filename, "r")
+        rdr = csv.reader(f)
+
+        # code = filename[30:36]
+
+        for line in rdr:
+            #        print(line)
+            line.append(code)
+            c_main.checkCondition(line)
+            c_main.csv_row_cnt += 1
+
+        average_price = numpy.array(c_main.average_price)
+        price_avg = numpy.mean(average_price)
+
+        per = 0
+        if (c_main.total_buy > 0):
+            per = (c_main.total_profit_price / c_main.total_buy * 100)
+        else:
+            per = 0
+
+        summary_f.write(
+            "CODE[%s]::AVG[%7d]::::ACC_TOTAL[%5s]=====> [GET][%3d][LOST][%3d][PROFIT][%10d]RATE[%.2f]:::::[TOTAL_BUY][%10d],[TOTAL_SELL][%10d]\n" %
+            (code, int(price_avg), "GET" if c_main.total_profit_price > 0 else "LOST", c_main.total_get_cnt,
+             c_main.total_lost_cnt,
+             c_main.total_profit_price, per, c_main.total_buy, c_main.total_sell))
+
+        # Today 정보를 파일에 쓰기 위해
+        line[0] = "END"
+        c_main.checkCondition(line)
+
+        f.close()
+
+    per = 0
+    if (c_main.all_total_buy > 0):
+        per = (c_main.all_total_profit_price / c_main.all_total_buy * 100)
+    else:
+        per = 0
+    summary_f.write(
+        "=========================================================================================================\n")
+    summary_f.write("========== ALL_TOTAL_PROFIT[%d], ALL_BUY[%d], ALL_SELL[%d], RATE[%f]==========\n" %
+                    (c_main.all_total_profit_price, c_main.all_total_buy, c_main.all_total_sell, per))
+    summary_f.write(
+        "=========================================================================================================\n\n\n\n")
+
+
+"""
 
     for i in range(2,8):
 
@@ -1140,3 +1287,4 @@ if __name__ == "__main__":
             c_main.all_total_profit_price = 0
             c_main.all_total_buy = 0
             c_main.all_total_sell = 0
+"""
