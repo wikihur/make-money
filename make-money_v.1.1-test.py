@@ -594,7 +594,7 @@ class StockWindow(QMainWindow):
         self.createKiwoomInstance()
         self.setSignalSlots()
 
-        database = "D:/kiwoom_db/market_price.db"
+        database = "C:/kiwoom_db/market_price.db"
         self.conn = sqlite3.connect(database)
         self.log_edit.append("DB 접속 완료")
 
@@ -1721,7 +1721,7 @@ class StockWindow(QMainWindow):
         # 최우선 매도 호가와 최우선 매수 호가 차이가 지정된 level 보다 같거나 높을 때 Enable Flag
         if(diff_sell_buy >= (step_price * step_price_level)):
             print("Enable Flag[%d] : 매수/매도 호가 차이 변동 [%d], Rule:[%d], Level:[%d]" %
-                  (sotck_code, diff_sell_buy, (step_price * step_price_level), step_price_level) )
+                  (stock_code, diff_sell_buy, (step_price * step_price_level), step_price_level) )
             self.code_auto_flag_rule_bull[stock_code] = True
             self.check_trans_time_rule_bull[stock_code] = make_time
             self.trans_data_rule_bull[stock_code] = [0, 0]
