@@ -1753,19 +1753,17 @@ class StockWindow(QMainWindow):
                     buy_cnt = self.getBuyCnt(current_price, buy_def_price)
 
                     print("매수주문!!! :" + stock_code)
-                    print("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d]"
-                          % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time))
+                    print("매수 주문[%s], 가격:[%d], 수량[%d], BULL[%f], diff_time[%d], set_bull[%d]"
+                          % (stock_code, buy_order_price, buy_cnt, bull_power, diff_time, threshold_make_amount))
 
-                    self.log_edit.append("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d]"
-                                         % (
-                                         stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power,
-                                         diff_time))
+                    self.log_edit.append("매수 주문[%s], 가격:[%d], 수량[%d], BULL[%f], diff_time[%d], set_bull[%d]"
+                                         % (stock_code, buy_order_price, buy_cnt, bull_power, diff_time, threshold_make_amount))
 
                     if (not self.simulation_flag):
                         self.testAutoBuy(stock_code, 1, str(buy_order_price), str(buy_cnt))
                         self.f_log.write(
-                            "매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d]\n"
-                            % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time))
+                            "매수 주문[%s], 가격:[%d], 수량[%d], BULL[%f], diff_time[%d], set_bull[%d] \n"
+                            % (stock_code, buy_order_price, buy_cnt, bull_power, diff_time, threshold_make_amount))
                         self.f_log.write("||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
 
                     else:
@@ -1786,8 +1784,8 @@ class StockWindow(QMainWindow):
 
                         self.f_sim.write("============================================================\n" +
                                          "[" + split_data[0] + "][BUY ]:LINE[" + str(self.csv_row_cnt) +
-                                         "]:\tCODE[" + stock_code + "]:\tCNT[" +
-                                         str(self.trans_cnt.get(stock_code)) + "]:\tBULL[" +
+                                         "]:\tCODE[" + stock_code + "]:\t" +
+                                         "BULL[" +
                                          str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
                                          "]:\tORDER_PRICE[" + str(buy_order_price) + "]:\t\n" +
                                          "============================================================\n")
@@ -2533,5 +2531,4 @@ if __name__ == "__main__":
         print(e)
 
     sys.exit(app.exec_())
-
 
