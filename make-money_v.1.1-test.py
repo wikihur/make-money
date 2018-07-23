@@ -620,6 +620,9 @@ class StockWindow(QMainWindow):
         # 매수호가가 한단계 올라갔을 때 시점의 체결 count 체크를 위한
         self.trans_cnt = {}
 
+        # 비교 조건 까지의 체결 Count 저장을 위한
+        self.trans_cnt_rule_bull = {}
+
         # 매수세 체크를 위해 Flag 가 시작된 시간 저장을 위한
         self.check_trans_time = {}
 
@@ -1670,7 +1673,7 @@ class StockWindow(QMainWindow):
                 if(self.lowest_price.get(stock_code)):
                     del self.lowest_price[stock_code]
 
-                self.trans_cnt[stock_code] = 0
+                self.trans_cnt_rule_bull[stock_code] = 0
                 self.trans_data[stock_code] = [0, 0]
                 self.stdev_strong.clear()
                 self.top_buy_price.clear()
@@ -1717,11 +1720,19 @@ class StockWindow(QMainWindow):
 
         # 최우선 매도 호가와 최우선 매수 호가 차이가 지정된 level 보다 같거나 높을 때 Enable Flag
         if(diff_sell_buy >= (step_price * step_price_level)):
+            print("Enable Flag[%d] : 매수/매도 호가 차이 변동 [%d], Rule:[%d], Level:[%d]" %
+                  (sotck_code, diff_sell_buy, (step_price * step_price_level), step_price_level) )
             self.code_auto_flag_rule_bull[stock_code] = True
             self.check_trans_time_rule_bull[stock_code] = make_time
             self.trans_data_rule_bull[stock_code] = [0, 0]
 
         if( self.code_auto_flag_rule_bull.get(stock_code) ):
+
+            # 체결 Count 저장
+            if (self.trans_cnt_rule_bull.get(stock_code)):
+                self.trans_cnt_rule_bull[stock_code] += 1
+            else:
+                self.trans_cnt_rule_bull[stock_code] = 1
 
             # 매수/매도 체결량 저장
             if(make_amount > 0):
@@ -1762,8 +1773,10 @@ class StockWindow(QMainWindow):
                     if (not self.simulation_flag):
                         self.testAutoBuy(stock_code, 1, str(buy_order_price), str(buy_cnt))
                         self.f_log.write(
-                            "매수 주문[%s], 가격:[%d], 수량[%d], BULL[%f], diff_time[%d], set_bull[%d] \n"
-                            % (stock_code, buy_order_price, buy_cnt, bull_power, diff_time, threshold_make_amount))
+                            "매수 주문[%s], 가격:[%d], 수량[%d], trans_cnt[%d], BULL[%f], buy_amount[%d], sell_amount[%d], diff_time[%d], set_bull[%d] \n"
+                            % (stock_code, buy_order_price, buy_cnt, self.trans_cnt_rule_bull[stock_code], bull_power,
+                               self.trans_data_rule_bull[stock_code][0], self.trans_data_rule_bull[stock_code][1],
+                               diff_time, threshold_make_amount))
                         self.f_log.write("||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
 
                     else:
@@ -1801,6 +1814,7 @@ class StockWindow(QMainWindow):
                 # 초기화
                 self.code_auto_flag_rule_bull[stock_code] = False
                 self.trans_data_rule_bull[stock_code] = [0, 0]
+                self.trans_cnt_rule_bull[stock_code] = 0
 
 
         # Sell
@@ -2104,6 +2118,9 @@ class StockWindow(QMainWindow):
 
     def changeFormat(self, data, percent=0):
 
+        if(data == ""):
+            return "0"
+
         if percent == 0:
             d = int(data)
             formatData = '{:-d}'.format(d)
@@ -2300,6 +2317,7 @@ class StockWindow(QMainWindow):
             self.account_info_date_label.setText(str(datetime.today()))
 
         elif requestName == "계좌별주문체결내역상세요청":
+
             # data reset
             self.opw00007Data = {'orderList': []}
 
@@ -2318,12 +2336,12 @@ class StockWindow(QMainWindow):
             self.transaction_info_edit.append(trans_str_list)
 
             self.opwDataReset()
-
             self.sell_order_list.clear()
+
             for i in range(cnt):
                 orderList = []
-
                 trans_info_list = ""
+
                 for key in keyList:
                     value = self.commGetData(trCode, "", requestName, i, key)
 
@@ -2337,7 +2355,13 @@ class StockWindow(QMainWindow):
                 self.opw00007Data['orderList'].append(orderList)
 
                 # TODO: different between real server and virtual server
-                if(orderList[2] == "현금매도"):
+                compare_string = ""
+                if len(self.server) == 0 or self.server != "1":
+                    compare_string = "현금매도"
+                else:
+                    compare_string = "매도"
+
+                if(orderList[2] ==  compare_string):
                     # 종목 번호: orderList[1]
                     # 주문 잔량: orderList[8]
                     if (self.sell_order_list.get(orderList[1])):
