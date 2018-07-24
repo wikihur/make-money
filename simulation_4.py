@@ -462,6 +462,10 @@ class StockClass():
 
     def getDiffTime(self, stock_code, make_time):
         # 시간 차이 계산
+
+        if(not self.check_trans_time.get(stock_code)):
+            return 0
+
         before_hour = int(self.check_trans_time[stock_code][:2])
         before_min = int(self.check_trans_time[stock_code][2:4])
         before_sec = int(self.check_trans_time[stock_code][4:])
@@ -662,13 +666,13 @@ class StockClass():
 
         threshold_time = 60
 
-        self.set_buy_condition_each_code()
+        #self.set_buy_condition_each_code()
         #step_price_level = 3
-        step_price_level = self.buy_rule[stock_code][0]
+        #step_price_level = self.buy_rule[stock_code][0]
 
         # 체결강도(매수/매도)(매수세:bull_power) 의 비율이 아래 이상일 때
         #threshold_make_amount = 5
-        threshold_make_amount = self.buy_rule[stock_code][1]
+        #threshold_make_amount = self.buy_rule[stock_code][1]
 
         if(self.external_set):
             step_price_level = self.file_step
@@ -844,14 +848,14 @@ class StockClass():
                     #                 "============================================================\n")
 
 
-                # 초기화
-                self.code_auto_flag[stock_code] = False
-                self.trans_cnt[stock_code] = 0
-                self.trans_data[stock_code] = [0, 0]
-                self.stdev_strong.clear()
-                self.top_buy_price.clear()
-                self.change_time_data[stock_code] = []
-                self.trans_sum.clear()
+                    # 초기화
+                    self.code_auto_flag[stock_code] = False
+                    self.trans_cnt[stock_code] = 0
+                    self.trans_data[stock_code] = [0, 0]
+                    self.stdev_strong.clear()
+                    self.top_buy_price.clear()
+                    self.change_time_data[stock_code] = []
+                    self.trans_sum.clear()
 
         self.before_stock_data[stock_code] = data_list
         # print(self.lowest_price)
@@ -1006,6 +1010,7 @@ if __name__ == "__main__":
                  "108230", "039030", "035900", "085660", "214370",
                  "102940", "069080", "025980", "112040", "200130"
                  ]
+
     # simulation result list
     code_list = [
         "000120",              "033780",        "009150",
@@ -1024,13 +1029,23 @@ if __name__ == "__main__":
              "068760",        "215600",        "112040",        "253450",
     ]
 
+    code_list = ["005930", "000660", "068270", "005490", "005380",
+                 "207940", "051910", "105560", "028260", "035420",
+                 "055550", "015760", "012330", "051900", "032830",
+                 "034730", "096770", "017670", "090430", "018260",
+                 "006400", "066570", "086790", "033780", "003550",
+                 "000270", "011170", "251270", "010950", "000810",
+                 "009150", "000030", "002790", "024110", "035720",
+                 "036570", "009540", "004020", "010130", "030200",
+                 "000720", "139480", "034220", "021240", "004990",
+                 "271560", "267250", "032640", "036460", "069500"]
 
     #code_list = ["207940"]
     #code_list = ["000660", "005930"]
     #code_list = ["000660"]
     #code_list = ["005930"]
     #code_list = ["005380"]
-    code_list = ["033780"]
+    #code_list = ["033780"]
 
     filename = "D:/data/000810.csv"
 
@@ -1040,65 +1055,76 @@ if __name__ == "__main__":
     summary_file_name = str(datetime.now().strftime('%Y%m%d')) + "_Summary.txt"
     summary_f = open(summary_file_name, "a")
 
+    #c_main.external_set = True
+    #c_main.file_step = 3
+    #c_main.file_threshold_make = 1
 
-    c_main.external_set = True
-    c_main.file_step = 3
-    c_main.file_threshold_make = 1
+    for i in range(2, 8):
 
-    summary_f.write("Step[%d], Bull[%d]\n\n" % (c_main.file_step, c_main.file_threshold_make))
+        for j in range(1, 11):
+            c_main.external_set = True
+            c_main.file_step = i
+            c_main.file_threshold_make = j
 
-    summary_f.write("{0:<3}|{1:<3}|{2:<6}|{3:>8}|{4:^11}|{5:<4}|{6:<4}|{7:>11}|{8:>6}|{9:>10}|{10:>10}\n".format(
-        "S","B","Code","AVG","Get_or_Lost","Get","Lost","Profit","Rate","Total_Buy","Total_Sell"))
-    for code in code_list:
+            summary_f.write("Step[%d], Bull[%d]\n\n" % (c_main.file_step, c_main.file_threshold_make))
 
-        #filename = "c:/data/" + code + ".csv"
-        filename = "./data/" + code + ".csv"
-        # filename = code + ".csv"
-        f = open(filename, "r")
-        # f = open(filename, "r")
-        rdr = csv.reader(f)
+            summary_f.write("{0:<3}|{1:<3}|{2:<6}|{3:>8}|{4:^11}|{5:<4}|{6:<4}|{7:>11}|{8:>6}|{9:>10}|{10:>10}\n".format(
+                "S","B","Code","AVG","Get_or_Lost","Get","Lost","Profit","Rate","Total_Buy","Total_Sell"))
 
-        # code = filename[30:36]
+            for code in code_list:
 
-        for line in rdr:
-            c_main.csv_row_cnt += 1
-            #        print(line)
-            line.append(code)
-            c_main.checkCondition(line)
+                filename = "c:/data/" + code + ".csv"
+                #filename = "./data/" + code + ".csv"
+                # filename = code + ".csv"
+                f = open(filename, "r",  encoding='UTF8')
+                # f = open(filename, "r")
+                rdr = csv.reader(f)
 
-        average_price = numpy.array(c_main.average_price)
-        price_avg = numpy.mean(average_price)
+                # code = filename[30:36]
 
-        per = 0
-        if (c_main.total_buy > 0):
-            per = (c_main.total_profit_price / c_main.total_buy * 100)
-        else:
+                for line in rdr:
+                    c_main.csv_row_cnt += 1
+                    #        print(line)
+                    line.append(code)
+                    c_main.checkCondition(line)
+
+                average_price = numpy.array(c_main.average_price)
+                price_avg = numpy.mean(average_price)
+
+                per = 0
+                if (c_main.total_buy > 0):
+                    per = (c_main.total_profit_price / c_main.total_buy * 100)
+                else:
+                    per = 0
+
+                summary_f.write(
+                    "{0:<3}|{1:<3}|{2:<6}|{3:>8}|{4:^11}|{5:^4}|{6:^4}|{7:>11}|{8:>6.2f}|{9:>10}|{10:>10}\n".format(
+                        c_main.file_step, c_main.file_threshold_make, code, int(price_avg), "GET" if c_main.total_profit_price > 0 else "LOST", c_main.total_get_cnt,
+                         c_main.total_lost_cnt, c_main.total_profit_price, per, c_main.total_buy, c_main.total_sell))
+
+
+                # Today 정보를 파일에 쓰기 위해
+                line[0] = "END"
+                c_main.checkCondition(line)
+
+                f.close()
+
             per = 0
+            if (c_main.all_total_buy > 0):
+                per = (c_main.all_total_profit_price / c_main.all_total_buy * 100)
+            else:
+                per = 0
+            summary_f.write(
+                "=========================================================================================================\n")
+            summary_f.write("========== ALL_TOTAL_PROFIT[%d], ALL_BUY[%d], ALL_SELL[%d], RATE[%f]==========\n" %
+                            (c_main.all_total_profit_price, c_main.all_total_buy, c_main.all_total_sell, per))
+            summary_f.write(
+                "=========================================================================================================\n\n\n\n")
+            summary_f.flush()
 
-        summary_f.write(
-            "{0:<3}|{1:<3}|{2:<6}|{3:>8}|{4:^11}|{5:^4}|{6:^4}|{7:>11}|{8:>6.2f}|{9:>10}|{10:>10}\n".format(
-                c_main.file_step, c_main.file_threshold_make, code, int(price_avg), "GET" if c_main.total_profit_price > 0 else "LOST", c_main.total_get_cnt,
-                 c_main.total_lost_cnt, c_main.total_profit_price, per, c_main.total_buy, c_main.total_sell))
-
-
-        # Today 정보를 파일에 쓰기 위해
-        line[0] = "END"
-        c_main.checkCondition(line)
-
-        f.close()
-
-    per = 0
-    if (c_main.all_total_buy > 0):
-        per = (c_main.all_total_profit_price / c_main.all_total_buy * 100)
-    else:
-        per = 0
-    summary_f.write(
-        "=========================================================================================================\n")
-    summary_f.write("========== ALL_TOTAL_PROFIT[%d], ALL_BUY[%d], ALL_SELL[%d], RATE[%f]==========\n" %
-                    (c_main.all_total_profit_price, c_main.all_total_buy, c_main.all_total_sell, per))
-    summary_f.write(
-        "=========================================================================================================\n\n\n\n")
-
+            c_main.all_total_profit_price = 0
+            c_main.all_total_buy = 0
+            c_main.all_total_sell = 0
 
 """
 

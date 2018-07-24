@@ -2141,6 +2141,11 @@ class StockWindow(QMainWindow):
                                          )
                         self.f_sim.write("============================================================\n")
 
+                    ## 초기화
+                    self.code_auto_flag_rule_bull[stock_code] = False
+                    self.trans_data_rule_bull[stock_code] = [0, 0]
+                    self.trans_cnt_rule_bull[stock_code] = 0
+
                 else:
                     print(str(datetime.today()))
                     print("S================================================================")
@@ -2150,10 +2155,10 @@ class StockWindow(QMainWindow):
                     print("Code[%s]:CON1:ARG1[%f]:ARG2[%f]" % (stock_code, bull_power, threshold_make_amount))
                     print("E================================================================")
 
-                # 초기화
-                self.code_auto_flag_rule_bull[stock_code] = False
-                self.trans_data_rule_bull[stock_code] = [0, 0]
-                self.trans_cnt_rule_bull[stock_code] = 0
+                ## 초기화
+                #self.code_auto_flag_rule_bull[stock_code] = False
+                #self.trans_data_rule_bull[stock_code] = [0, 0]
+                #self.trans_cnt_rule_bull[stock_code] = 0
 
 
         # Sell

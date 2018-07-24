@@ -594,7 +594,7 @@ class StockWindow(QMainWindow):
         self.createKiwoomInstance()
         self.setSignalSlots()
 
-        database = "D:/kiwoom_db/market_price.db"
+        database = "C:/kiwoom_db/market_price.db"
         self.conn = sqlite3.connect(database)
         self.log_edit.append("DB 접속 완료")
 
