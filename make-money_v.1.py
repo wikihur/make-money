@@ -1537,7 +1537,7 @@ class StockWindow(QMainWindow):
         buy_cnt = 1
 
         # 매수시 주문 기준 금액 (10만원)
-        buy_def_price = 100000
+        buy_def_price = 200000
 
         # 수익률 0.8%
         #profit_rate = 1.008

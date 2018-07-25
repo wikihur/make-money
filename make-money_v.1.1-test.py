@@ -433,7 +433,7 @@ class StockWindow(QMainWindow):
 
         # Setting Windows
         win_width = 800
-        win_height = 750
+        win_height = 850
         win_x = 100
         win_y = 100
 
@@ -483,7 +483,7 @@ class StockWindow(QMainWindow):
         reged_code.move(win_width / 3 + 120 , base_y)
 
         self.listWidget = QListWidget(self)
-        self.listWidget.setGeometry(win_width / 3 + 120, win_height / 16, 120, 180)
+        self.listWidget.setGeometry(win_width / 3 + 120, win_height / 16, 120, 200)
         self.listWidget.itemClicked.connect(self.item_click)
 
         order_price = QLabel('주문가격: ', self)
@@ -512,7 +512,14 @@ class StockWindow(QMainWindow):
 
         self.loss_edit = QLineEdit(self)
         self.loss_edit.setGeometry(win_width / 2 + 200, win_height / 16 + 160, 60,30)
-        self.loss_edit.setText("2.7")
+        self.loss_edit.setText("2")
+
+        buy_def_label = QLabel('매수기준액: ', self)
+        buy_def_label.move(win_width / 2 + 130, win_height / 16 + 200)
+
+        self.buy_def_edit = QLineEdit(self)
+        self.buy_def_edit.setGeometry(win_width / 2 + 200, win_height / 16 + 200, 60, 30)
+        self.buy_def_edit.setText("200000")
 
 
         btn_test_order_buy = QPushButton("매수 테스트", self)
@@ -556,22 +563,22 @@ class StockWindow(QMainWindow):
         btn_get_deposit.clicked.connect(self.btn_get_deposit_clicked)
 
         account_info_label = QLabel('계좌잔고: ', self)
-        account_info_label.move(base_x, win_height/3 + 50)
+        account_info_label.move(base_x, win_height/3 + 90)
 
         self.account_info_date_label = QLabel('', self)
-        self.account_info_date_label.setGeometry(base_x + 60, win_height / 3 + 50, 130, 30)
+        self.account_info_date_label.setGeometry(base_x + 60, win_height / 3 + 90, 130, 30)
 
         self.account_info_edit = QTextEdit(self)
-        self.account_info_edit.setGeometry(base_x, win_height/3 + 80, win_width - 20, win_height / 6)
+        self.account_info_edit.setGeometry(base_x, win_height/3 + 120, win_width - 20, win_height / 5)
 
         transaction_label = QLabel('주문체결: ', self)
-        transaction_label.move(base_x, win_height/2 + 100)
+        transaction_label.move(base_x, win_height/2 + 160)
 
         self.transaction_date_label = QLabel('', self)
-        self.transaction_date_label.setGeometry(base_x + 60, win_height / 2 + 100, 130, 30)
+        self.transaction_date_label.setGeometry(base_x + 60, win_height / 2 + 160, 130, 30)
 
         self.transaction_info_edit = QTextEdit(self)
-        self.transaction_info_edit.setGeometry(base_x, win_height/2 + 130, win_width - 20, win_height / 6)
+        self.transaction_info_edit.setGeometry(base_x, win_height/2 + 190, win_width - 20, win_height / 4)
 
         self.rule1_flag_checkbox = QCheckBox("Rule1", self)
         self.rule1_flag_checkbox.move(win_width - 280, base_y)
@@ -715,84 +722,60 @@ class StockWindow(QMainWindow):
             "007310","029780","066570","068760","215600",
             "112040","253450" ]
 
+        self.simul_list = [
+            "000270","000810","003380","003550","005490",
+            "006400","007390","007390","010950","015760",
+            "017670","022100","025980","028150","033780",
+            "034230","034230","036830","038540","039030",
+            "041510","051910","055550","068270","069080",
+            "085660","086790","090430","112040","130960",
+            "130960","178920","178920","207940","215600",
+            "215600"
+        ]
+
         for f in self.simul_list:
             self.set_real_start(f)
 
     def set_buy_condition_each_code(self):
         self.buy_rule = {
-            "000120": [3, 1],
-            "008770": [3, 1],
-            "009240": [3, 1],
             "033780": [3, 1],
-            "009150": [3, 2],
-            "028260": [3, 2],
-            "084110": [3, 2],
-            "000720": [3, 3],
             "010950": [3, 3],
-            "004170": [3, 4],
-            "005830": [3, 4],
-            "096770": [3, 4],
-            "000660": [3, 5],
-            "012330": [3, 5],
-            "067160": [3, 5],
-            "006360": [3, 6],
-            "053800": [3, 6],
-            "006400": [3, 8],
             "068270": [3, 8],
-            "023530": [3, 9],
-            "002790": [4, 1],
-            "005380": [4, 1],
-            "010620": [4, 1],
-            "035250": [4, 1],
-            "161390": [4, 1],
-            "181710": [4, 1],
+            "034230": [4, 1],
+            "003380": [4, 1],
+            "034230": [4, 1],
             "017670": [4, 2],
-            "251270": [4, 2],
-            "128940": [4, 3],
-            "036460": [4, 4],
+            "006400": [4, 4],
+            "015760": [4, 4],
             "051910": [4, 4],
-            "139480": [4, 4],
-            "000810": [4, 5],
-            "015760": [4, 5],
-            "271560": [4, 5],
             "005490": [4, 6],
-            "130960": [4, 6],
-            "010130": [4, 8],
-            "036570": [4, 8],
-            "018260": [5, 1],
-            "047810": [5, 1],
-            "034230": [5, 1],
-            "067630": [5, 1],
-            "008930": [5, 2],
-            "038540": [5, 2],
-            "069080": [5, 2],
-            "178920": [5, 2],
-            "192080": [5, 2],
-            "000270": [5, 4],
-            "004990": [5, 4],
-            "009540": [5, 5],
-            "055550": [5, 5],
-            "039030": [5, 6],
-            "006040": [6, 1],
-            "004020": [6, 2],
+            "130960": [4, 9],
+            "069080": [5, 1],
+            "000270": [5, 3],
+            "055550": [5, 7],
+            "130960": [5, 7],
+            "022100": [5, 9],
+            "038540": [5, 9],
+            "036830": [6, 1],
+            "085660": [6, 1],
+            "003550": [6, 2],
             "086790": [6, 2],
-            "003550": [6, 3],
             "090430": [6, 3],
-            "058470": [6, 3],
-            "090460": [6, 3],
-            "079440": [6, 6],
-            "207940": [6, 7],
-            "007310": [7, 1],
-            "029780": [7, 1],
-            "066570": [7, 1],
-            "041510": [7, 1],
-            "068760": [7, 2],
+            "178920": [6, 6],
+            "178920": [6, 7],
+            "039030": [6, 7],
+            "041510": [6, 9],
+            "000810": [7, 3],
+            "007390": [7, 3],
+            "215600": [7, 3],
+            "007390": [7, 3],
             "215600": [7, 3],
             "112040": [7, 4],
-            "253450": [7, 7],
-            "140410": [7, 9],
-            "000660": [3,5]
-        }
+            "207940": [7, 5],
+            "025980": [7, 8],
+            "028150": [7, 9]
+            }
+
 
     def btn_total_real_stop_clicked(self):
 
@@ -1366,13 +1349,13 @@ class StockWindow(QMainWindow):
                 # code = filename[30:36]
 
                 for line in rdr:
+                    self.csv_row_cnt += 1
                     #        print(line)
                     line.append(code)
                     if (self.rule1_flag_checkbox.isChecked() == True):
                         self.checkCondition(line)
                     if (self.rule2_flag_checkbox.isChecked() == True):
                         self.checkCondition_rule_bull(line)
-                    self.csv_row_cnt += 1
 
 
                 # Today 정보를 파일에 쓰기 위해
@@ -1384,9 +1367,11 @@ class StockWindow(QMainWindow):
                 #self.checkCondition(line)
 
                 f.close()
+                self.f_sim.write("END[%s] ============================================================\n\n\n\n" % (code))
 
             #self.f_sim.close()
             self.f_sim.flush()
+            print("End Simulation for code:" + code)
         else:
             print("Need to set simulation checkbox")
             self.log_edit.append("Need to set simulation checkbox")
@@ -1562,9 +1547,14 @@ class StockWindow(QMainWindow):
                 step_price = 1000
             else:
                 step_price = 100
+
         return step_price
 
     def getDiffTime(self, stock_code, make_time):
+
+        if (not self.check_trans_time.get(stock_code)):
+            return 0
+
         # 시간 차이 계산
         before_hour = int(self.check_trans_time[stock_code][:2])
         before_min = int(self.check_trans_time[stock_code][2:4])
@@ -1579,6 +1569,10 @@ class StockWindow(QMainWindow):
         return diff_time
 
     def getDiffTime_rule_bull(self, stock_code, make_time):
+
+        if (not self.check_trans_time_rule_bull.get(stock_code)):
+            return 0
+
         # 시간 차이 계산
         before_hour = int(self.check_trans_time_rule_bull[stock_code][:2])
         before_min = int(self.check_trans_time_rule_bull[stock_code][2:4])
@@ -1669,7 +1663,7 @@ class StockWindow(QMainWindow):
         buy_cnt = 1
 
         # 매수시 주문 기준 금액 (10만원)
-        buy_def_price = 100000
+        buy_def_price = int(self.buy_def_edit.text())
 
         # 수익률 0.8%
         #profit_rate = 1.008
@@ -1846,6 +1840,7 @@ class StockWindow(QMainWindow):
                                      str(self.trans_cnt.get(stock_code)) + "]:\tBULL[" +
                                      str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
                                      "]:\tORDER_PRICE[" + str(buy_order_price) + "]:\t" +
+                                     "AMOUNT[" + str(buy_cnt) + "]:\t" +
                                      "TOP_BUY[" + str(div_avg_low) + "]:\t" +
                                      "DIFF_STR[" + str(diff_strong) + "]:\t" +
                                      "STDEV[" + str(stdev_strong) + "]\n" +
@@ -2016,8 +2011,8 @@ class StockWindow(QMainWindow):
         # 기본 매수량
         buy_cnt = 1
 
-        # 매수시 주문 기준 금액 (10만원)
-        buy_def_price = 100000
+        # 매수시 주문 기준 금액 (20만원)
+        buy_def_price = int(self.buy_def_edit.text())
 
         # 수익률 0.8%
         #profit_rate = 1.008
@@ -2133,8 +2128,9 @@ class StockWindow(QMainWindow):
                         self.f_sim.write("[%s][RULE2][BUY ]:FLAG_LINE[%d]:LINE[%d]\tCODE[%s]\tBULL[%f]\tDIFF_T[%d]\tORDER_PRICE[%d]\t" %
                                          (split_data[0], self.before_csv_row_cnt, self.csv_row_cnt, stock_code, bull_power, diff_time,
                                           buy_order_price))
-                        self.f_sim.write("T_CNT[%d]\tB_A[%d]\tS_A[%d]\tset_bull[%d]\n" %
-                                         (self.trans_cnt_rule_bull[stock_code],
+                        self.f_sim.write("AMOUNT[%d]\tT_CNT[%d]\tB_A[%d]\tS_A[%d]\tset_bull[%d]\n" %
+                                         ( buy_cnt,
+                                             self.trans_cnt_rule_bull[stock_code],
                                            self.trans_data_rule_bull[stock_code][0],
                                            self.trans_data_rule_bull[stock_code][1],
                                            threshold_make_amount)
