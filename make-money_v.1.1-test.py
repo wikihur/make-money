@@ -2034,11 +2034,18 @@ class StockWindow(QMainWindow):
         # 최우선 매도 호가 - 최우선 매수 호가 : step_level 로 비교
         diff_sell_buy = first_sell_price - first_buy_price
 
-        # 각 코드 별 시뮬레이션으로 값을 가지고 있음.
-        step_price_level = self.buy_rule[stock_code][0]
+        if(self.buy_rule.get(stock_code)):
+            # 각 코드 별 시뮬레이션으로 값을 가지고 있음.
+            step_price_level = self.buy_rule[stock_code][0]
 
-        # 체결강도(매수/매도)(매수세:bull_power) 의 비율이 아래 이상일 때
-        threshold_make_amount = self.buy_rule[stock_code][1]
+            # 체결강도(매수/매도)(매수세:bull_power) 의 비율이 아래 이상일 때
+            threshold_make_amount = self.buy_rule[stock_code][1]
+        else:
+            # 각 코드 별 시뮬레이션으로 값이 없으면.. 특정 값으로 설정.
+            print("Please check buy rule for code [%s]" % (stock_code))
+            step_price_level = 7
+            threshold_make_amount = 5
+
 
         # 최우선 매도 호가와 최우선 매수 호가 차이가 지정된 level 보다 같거나 높을 때 Enable Flag
         if(diff_sell_buy >= (step_price * step_price_level)):
