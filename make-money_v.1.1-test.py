@@ -4,7 +4,7 @@ from PyQt5.QAxContainer import *
 from PyQt5.QtCore import *
 import pandas as pd
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 import numpy
 import csv
 import re
@@ -478,7 +478,6 @@ class StockWindow(QMainWindow):
         btn_real_stop_total.move(win_width / 3, win_height / 16 + 160)
         btn_real_stop_total.clicked.connect(self.btn_total_real_stop_clicked)
 
-
         reged_code = QLabel('등록된코드: ', self)
         reged_code.move(win_width / 3 + 120 , base_y)
 
@@ -557,6 +556,18 @@ class StockWindow(QMainWindow):
         btn_query_order = QPushButton("주문체결 조회", self)
         btn_query_order.move(win_width / 2, win_height/2 - 100)
         btn_query_order.clicked.connect(self.btn_query_order_clicked)
+
+        self.order_dropcombo = QComboBox(self)
+        today = datetime.today()
+
+        for i in range(7):
+            dt = timedelta(-i)
+            temp = today + dt
+            self.order_dropcombo.addItem(temp.strftime('%Y%m%d'))
+
+        self.order_dropcombo.move(win_width / 2, win_height/2 - 60)
+        #self.order_dropcombo.currentIndexChanged.connect(self.selectionCombo)
+
 
         btn_get_deposit = QPushButton("예수금조회", self)
         btn_get_deposit.move(win_width / 2 + 130, win_height/2 - 100)
@@ -677,6 +688,9 @@ class StockWindow(QMainWindow):
 
         # KOSDAQ 시총 100위 저장
         self.kosdaq_100 = []
+
+    #def selectionCombo(self, i):
+    #    print( self.order_dropcombo.currentText())
 
     def getAccountInfo(self):
 
@@ -1414,7 +1428,7 @@ class StockWindow(QMainWindow):
     def btn_query_order_clicked(self):
         self.log_edit.append("주문체결 조회")
 
-        today = datetime.now().strftime('%Y%m%d')
+        today = self.order_dropcombo.currentText()
 
         if not self.getConnectState():
             print("로그인 후 사용하세요")
