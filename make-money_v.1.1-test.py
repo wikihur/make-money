@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import *
 from PyQt5.QAxContainer import *
 from PyQt5.QtCore import *
 import pandas as pd
+from fbprophet import Prophet
 import sqlite3
 from datetime import datetime, timedelta
 import numpy
@@ -396,6 +397,36 @@ class FidList(object):
         306: '하한가'
     }
 
+class Thread(QThread):
+    """
+    단순히 0부터 100까지 카운트만 하는 쓰레드
+    값이 변경되면 그 값을 change_value 시그널에 값을 emit 한다.
+    """
+    # 사용자 정의 시그널 선언
+    change_value = pyqtSignal(str)
+
+    def __init__(self, data):
+        QThread.__init__(self)
+        self.cnt = 0
+        self.data = data
+        print("data %d" % data)
+        self.mutex = QMutex()
+
+    def __del__(self):
+        self.wait()
+
+    def run(self):
+        print("Run!!!")
+        while True:
+
+            if 100 == self.cnt:
+                self.cnt = 0
+                break
+            self.cnt += 1
+            self.change_value.emit(str(self.data) + "---" + str(self.cnt))
+            self.msleep(100)  # ※주의 QThread에서 제공하는 sleep을 사용
+
+
 class StockWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -541,6 +572,11 @@ class StockWindow(QMainWindow):
         btn_simulation_test.move(win_width - 120, win_height / 8 + 160)
         btn_simulation_test.clicked.connect(self.btn_simulation_test_clicked)
 
+        btn_thread_test= QPushButton("Thread Test", self)
+        btn_thread_test.move(win_width - 120, win_height / 8 + 200)
+        btn_thread_test.clicked.connect(self.btn_thread_test_clicked)
+
+
         btn_get_low =  QPushButton("저가근접조회", self)
         btn_get_low.move((win_width / 2) - 30, win_height / 2 - 140)
         btn_get_low.clicked.connect(self.btn_get_low_clicked)
@@ -594,12 +630,12 @@ class StockWindow(QMainWindow):
         self.rule1_flag_checkbox = QCheckBox("Rule1", self)
         self.rule1_flag_checkbox.move(win_width - 280, base_y)
         self.rule1_flag_checkbox.resize(100, 30)
-        self.rule1_flag_checkbox.setChecked(False)
+        self.rule1_flag_checkbox.setChecked(True)
 
         self.rule2_flag_checkbox = QCheckBox("Rule2", self)
         self.rule2_flag_checkbox.move(win_width - 280, base_y + 20)
         self.rule2_flag_checkbox.resize(100, 30)
-        self.rule2_flag_checkbox.setChecked(True)
+        self.rule2_flag_checkbox.setChecked(False)
 
         self.auto_trade_checkbox = QCheckBox("자동 매매", self)
         self.auto_trade_checkbox.move(win_width - 220, base_y)
@@ -689,8 +725,35 @@ class StockWindow(QMainWindow):
         # KOSDAQ 시총 100위 저장
         self.kosdaq_100 = []
 
+        # 각 데이터의 기간 데이터 저장(1분 혹은 30초, 예측 데이터를 위해)
+        self.save_period_data = {}
+
+        # 데이터 저장을 위해 이전의 데이터를 저장
+        self.before_save_sec = {}
+
+        self.th = {}
+        self.list = 0
+
     #def selectionCombo(self, i):
     #    print( self.order_dropcombo.currentText())
+
+    def btn_thread_test_clicked(self):
+        print("Thread Test")
+        self.list += 1
+
+        if(not self.th.get(self.list)):
+            self.th[self.list] = Thread(self.list)
+            self.th[self.list].change_value.connect(self.printValue)
+
+        if not self.th[self.list].isRunning():
+            self.th[self.list].start()
+
+        if( self.list == 2):
+            self.list = 0
+
+    def printValue(self, value):
+        print(value)
+        temp = value
 
     def getAccountInfo(self):
 
@@ -721,40 +784,73 @@ class StockWindow(QMainWindow):
 
     def btn_total_real_start_clicked(self):
 
-        """
-        self.simul_list = [
-            "033780","010950","068270","086390","034230",
-            "046110","017670","048260","006400","015760",
-            "051910","067630","005490","089600","108320",
-            "006730","130960","045390","086520","000270",
-            "023410","035810","055550","022100","038540",
-            "122870","003550","086790","043150","086450",
-            "090430","033290","178920","039030","183490",
-            "000810","007390","215600","090460","036420",
-            "112040","237690","207940","028150","025980",
-        ]
-        """
-        self.simul_list = [
+        self.kospi_100 = [   "005930","000660","068270","005935","207940",
+                        "005490","005380","035420","051910","105560",
 
-            "000030","000660","000810","003410","004020",
-            "004800","004990","005490","005690","006040",
-            "006360","006400","008770","008930","009540",
-            "010130","012330","015760","029780","033780",
-            "034730","035420","051910","055550","069960",
-            "079440","086790","088350","090430","093050",
-            "138930","207940","282330","006730","007390",
-            "022100","023410","025980","028150","030190",
-            "033290","035810","036420","038540","039200",
-            "041510","043150","044180","045390","058820",
-            "064760","067630","073070","083790","086390",
-            "086450","086520","089600","090460","095610",
-            "096530","108320","112040","122870","130960",
-            "178920","183490","200130","200230","215600",
-            "237690"
-        ]
+                        "028260","051900","055550","015760","012330",
+                        "032830","017670","090430","034730","096770",
+
+                        "018260","033780","006400","066570","251270",
+                        "000810","000270","086790","003550","010950",
+
+                        "009150","011170","000030","002790","035720",
+                        "024110","036570","030200","010130","139480",
+
+                        "009540","004020","034220","004990","000720",
+                        "021240","069500","032640","271560","023530",
 
 
-        for f in self.simul_list:
+                        "267250","018880","036460","035250","006800",
+                        "097950","161390","078930","004800","128940",
+
+                        "071050","088350","010140","008770","029780",
+                        "086280","005830","001040","005940","008930",
+
+                        "047810","000120","012750","004170","011780",
+                        "009830","006360","002380","011070","079440",
+
+                        "005387","241560","007070","282330","088980",
+                        "001450","016360","028050","138930","007310",
+
+                        "102110","042660","003410","122630","003490",
+                        "000210","000100","026960","047050","069960"
+                     ]
+
+
+        # KOSDAQ
+        self.kosdaq_100 = [   "091990","215600","086900","130960","084990",
+                        "028300","253450","068760","151910","263750",
+
+                        "003670","016170","145020","950160","078340",
+                        "095700","036490","034230","035760","042000",
+
+                        "178920","041960","098460","066970","056190",
+                        "240810","028150","049950","036830","022100",
+
+                        "038540","003380","058470","192080","046890",
+                        "041510","035900","108230","000250","065660",
+
+                        "073070","069080","007390","039030","036420",
+                        "214370","115450","200130","085660","090460",
+
+
+                        "102940", "112040", "267980", "064760", "086520",
+                        "096530", "243070", "048260", "122870", "237690",
+
+                        "078160", "030190", "025980", "183490", "200230",
+                        "108320", "035600", "005290", "086450", "084110",
+
+                        "092040", "083790", "048530", "039200", "218410",
+                        "039840", "045390", "023410", "031980", "067160",
+
+                        "033290", "272290", "053800", "067630", "089600",
+                        "080160", "237880", "038500", "058820", "006730",
+
+                        "043150", "168330", "144510", "035810", "095610",
+                        "950170", "140410", "078020", "086390", "032190"
+                     ]
+
+        for f in self.kospi_100:
             self.set_real_start(f)
 
     def set_buy_condition_each_code(self):
@@ -1472,10 +1568,12 @@ class StockWindow(QMainWindow):
 
                 f.close()
                 self.f_sim.write("END[%s] ============================================================\n\n\n\n" % (code))
+                print("End Simulation for code:" + code)
 
             #self.f_sim.close()
             self.f_sim.flush()
-            print("End Simulation for code:" + code)
+
+            print("End Simulation.....")
         else:
             print("Need to set simulation checkbox")
             self.log_edit.append("Need to set simulation checkbox")
@@ -1702,6 +1800,76 @@ class StockWindow(QMainWindow):
 
         return buy_cnt
 
+    def changeDateFormat(self, data_date, make_time):
+
+        h = make_time[:2]
+        m = make_time[2:4]
+        s = make_time[4:]
+
+        # 30초 단위로 Data 를 저장하기 위해
+        split_step = 30
+        div_sec = int(int(s) / split_step)
+
+        if (div_sec == 0):
+            data = data_date + " " + h + ":" + m + ":00"
+        else:
+            data = data_date + " " + h + ":" + m + ":" + str(div_sec * split_step)
+
+        return data
+
+    def saveDataforPredict(self, data_list):
+
+        if(not self.simulation_checkbox.isChecked()):
+            stock_code = data_list[0]
+            current_price = abs(int(data_list[1]))
+            make_time = data_list[10]
+            data_date = datetime.today().strftime('%Y-%m-%d')
+        else:
+            stock_code = data_list[23]
+            current_price = abs(int(data_list[2]))
+            make_time = data_list[1]
+            data_date = data_list[0][:10]
+
+        ds_data = self.changeDateFormat(data_date, make_time)
+
+        if (ds_data != self.before_save_sec.get(stock_code)):
+            if not self.save_period_data.get(stock_code):
+                self.save_period_data[stock_code] = {'ds': [ds_data], 'y': [current_price]}
+            else:
+                self.save_period_data[stock_code]['ds'].append(ds_data)
+                self.save_period_data[stock_code]['y'].append(current_price)
+
+            self.before_save_sec[stock_code] = ds_data
+
+    def checkPredict(self, stock_code, make_time, current_price):
+
+        h = int(make_time[:2]) * 60 * 60
+        m = int(make_time[2:4]) * 60
+        s = int(make_time[4:])
+
+        base_h = 15 * 60 * 60
+        base_m = 20 * 60
+
+        base_time_sec = base_h + base_m
+        diff_time_sec = int((base_time_sec - (h + m + s)) / 30)
+
+        df = pd.DataFrame(self.save_period_data[stock_code])
+        m = Prophet().fit(df)
+        future = m.make_future_dataframe(periods=diff_time_sec, freq='30s')
+        forecast = m.predict(future)
+
+        for yhat in forecast['yhat'].tail(diff_time_sec):
+
+            if(current_price < yhat):
+                buy_or_not = True
+                self.f_sim.write("\n\nBUY!!!!!\n\n")
+                break
+            else:
+                buy_or_not = False
+                self.f_sim.write("\n\nNever BUY!!!!!\n\n")
+
+        return buy_or_not
+
     def checkCondition(self, data_list):
         """
             새로운 룰
@@ -1759,9 +1927,12 @@ class StockWindow(QMainWindow):
                 self.before_simul_date = split_data[0]
 
         # 체결시간 9시 전이면 return
-        if (abs(int(make_time)) < 90000):
-            print("[before AM.9]")
+        if ( (abs(int(make_time)) < 90000) or (abs(int(make_time)) > 153000 )):
+            print("[before AM.9] or [after PM.3.30]")
             return
+
+        # 예측 데이터를 위해(prophet) 금일 프로그램 시작 부터 Data 저장
+        self.saveDataforPredict(data_list)
 
         # 기본 매수량
         buy_cnt = 1
@@ -1897,7 +2068,7 @@ class StockWindow(QMainWindow):
                         (bull_power >= threshold_make_amount) and
                         (div_avg_low > threshold_div_avg_low) and
                         (diff_strong > 0) and (diff_strong < threshold_diff_strong) and
-                        (stdev_strong < threshold_stdev_strong)):
+                        (stdev_strong < threshold_stdev_strong) ):
 
                     buy_order_price = 0
 
@@ -1906,7 +2077,7 @@ class StockWindow(QMainWindow):
                     else:
                         buy_order_price = first_sell_price
 
-                    buy_cnt = self.getBuyCnt(current_price, buy_def_price)
+                    buy_cnt = self.getBuyCnt(buy_order_price, buy_def_price)
 
                     print("매수주문!!! :" + stock_code)
                     print("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], diff_strong[%f]"
@@ -1950,6 +2121,9 @@ class StockWindow(QMainWindow):
                                      "STDEV[" + str(stdev_strong) + "]\n" +
                                      "============================================================\n")
 
+                        print("start predict")
+                        self.checkPredict(stock_code, make_time, current_price)
+                        print("end predict")
 
                 else:
                     print(str(datetime.today()))
@@ -1999,9 +2173,9 @@ class StockWindow(QMainWindow):
                         #                     (stock_code,  current_price, bought_price, int(current_price-bought_price)))
 
                         if ((bought_price * loss_rate) >= current_price):
-                            self.f_log.write("[손절]=")
+                            self.f_log.write("[손절]=\n")
                         else:
-                            self.f_log.write("[수익]=")
+                            self.f_log.write("[수익]=\n")
 
                         sell_order_price = 0
 
@@ -2286,9 +2460,9 @@ class StockWindow(QMainWindow):
                         #                     (stock_code,  current_price, bought_price, int(current_price-bought_price)))
 
                         if ((bought_price * loss_rate) >= current_price):
-                            self.f_log.write("[손절]=")
+                            self.f_log.write("[손절]=\n")
                         else:
-                            self.f_log.write("[수익]=")
+                            self.f_log.write("[수익]=\n")
 
                         sell_order_price = 0
 
@@ -2775,6 +2949,7 @@ class StockWindow(QMainWindow):
 
             value = self.commGetData(trCode, "", requestName, 0, "출력건수")
 
+            print("Value: %s" % value)
             if(value is ""):
                 cnt = 0
             else:
