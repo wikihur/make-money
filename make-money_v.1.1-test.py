@@ -1844,7 +1844,7 @@ class StockWindow(QMainWindow):
 
             self.before_save_sec[stock_code] = ds_data
 
-    def checkPredict(self, stock_code, make_time, current_price):
+    def checkPredict(self, stock_code, make_time, current_price, simul_date):
 
         h = int(make_time[:2]) * 60 * 60
         m = int(make_time[2:4]) * 60
@@ -1866,7 +1866,31 @@ class StockWindow(QMainWindow):
         else:
             self.temp_csv_count[stock_code] += 1
 
+        if (not self.simulation_checkbox.isChecked()):
+            base_dt = datetime.today()
+        else:
+            base_dt = datetime(int(simul_date[:4]), int(simul_date[5:7]), int(simul_date[8:10]))
+
+        # 7일 전 date 설정
+        target_dt = base_dt - timedelta(7)
+        print("Simul DT: %s" % simul_date)
+        print("Target DT: %d-%d" % (target_dt.month, target_dt.day))
+        index = 0
+
+        for check_date in self.save_period_data[stock_code]['ds']:
+
+            month = int(check_date[5:7])
+            day = int(check_date[8:10])
+
+            if( month >= target_dt.month and day >= target_dt.day):
+                break
+
+            index += 1
+
+        print('index: %d' % index)
+
         df = pd.DataFrame(self.save_period_data[stock_code])
+        df = df[index:]
 
         print("file write")
         df.to_csv(stock_code + "_input_ " + str(self.temp_csv_count[stock_code]) + ".csv")
@@ -2145,7 +2169,7 @@ class StockWindow(QMainWindow):
                                      "============================================================\n")
 
                         print("start predict")
-                        self.checkPredict(stock_code, make_time, current_price)
+                        self.checkPredict(stock_code, make_time, current_price, split_data[0])
                         print("end predict")
 
                 else:
