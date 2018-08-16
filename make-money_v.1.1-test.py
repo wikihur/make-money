@@ -491,7 +491,7 @@ class StockWindow(QMainWindow):
 
         self.code_edit = QLineEdit(self)
         self.code_edit.move(win_width / 3, win_height / 16)
-        self.code_edit.setText("000660")
+        self.code_edit.setText("005930")
 
         btn_real_start = QPushButton("실시간 받기", self)
         btn_real_start.move(win_width / 3, win_height / 16 + 40)
@@ -730,6 +730,9 @@ class StockWindow(QMainWindow):
 
         # 데이터 저장을 위해 이전의 데이터를 저장
         self.before_save_sec = {}
+
+        # temp csv count
+        self.temp_csv_count = {}
 
         self.th = {}
         self.list = 0
@@ -1853,20 +1856,40 @@ class StockWindow(QMainWindow):
         base_time_sec = base_h + base_m
         diff_time_sec = int((base_time_sec - (h + m + s)) / 30)
 
+        profit_rate = 1.0 + abs(float(self.profit_edit.text()) / 100)
+        loss_rate = 1.0 - abs(float(self.loss_edit.text()) / 100)
+
+        buy_or_not = False
+
+        if (not self.temp_csv_count.get(stock_code)):
+            self.temp_csv_count[stock_code] = 1
+        else:
+            self.temp_csv_count[stock_code] += 1
+
         df = pd.DataFrame(self.save_period_data[stock_code])
+
+        print("file write")
+        df.to_csv(stock_code + "_input_ " + str(self.temp_csv_count[stock_code]) + ".csv")
+        print("file write end")
+
         m = Prophet().fit(df)
         future = m.make_future_dataframe(periods=diff_time_sec, freq='30s')
         forecast = m.predict(future)
 
         for yhat in forecast['yhat'].tail(diff_time_sec):
-
-            if(current_price < yhat):
+            if(((current_price * profit_rate) <= yhat) and
+                    ((current_price * loss_rate) < yhat)):
                 buy_or_not = True
-                self.f_sim.write("\n\nBUY!!!!!\n\n")
                 break
-            else:
-                buy_or_not = False
-                self.f_sim.write("\n\nNever BUY!!!!!\n\n")
+
+        print("result file write")
+        forecast.to_csv(stock_code + "_result_ " + str(self.temp_csv_count[stock_code]) + ".csv")
+        print("result file write end")
+
+        if(buy_or_not):
+            self.f_sim.write("\n\nBUY!!!!!\n\n")
+        else:
+            self.f_sim.write("\n\n---->>>>> Never BUY!!!!!\n\n")
 
         return buy_or_not
 
