@@ -2217,8 +2217,8 @@ class StockWindow(QMainWindow):
                 diff_rotation = rotation_arr[-1] - rotation_arr[0]
 
                 print(str(datetime.today()))
-                print("Checking[%s]:cnt[%d],bull_power[%s],diff_time[%d],stdev[%s],diff_strong[%f],top_buy_avg[%s],div_avg_low[%s]"
-                      % (stock_code, self.trans_cnt[stock_code], str(bull_power), diff_time, str(stdev_strong), diff_strong, str(top_buy_avg), str(div_avg_low)))
+                print("Checking[%s]:cnt[%d],bull_power[%s],diff_time[%d]"
+                      % (stock_code, self.trans_cnt[stock_code], str(bull_power), diff_time))
 
                 # 진짜 Rule Check
                 #if ((self.trans_cnt.get(stock_code) > threshold_make_cnt) and
@@ -2226,6 +2226,7 @@ class StockWindow(QMainWindow):
                         #(div_avg_low > threshold_div_avg_low) and
                         #(diff_strong > 0) and (diff_strong < threshold_diff_strong) and
                         #(stdev_strong < threshold_stdev_strong) ):
+
                 if ((self.trans_cnt.get(stock_code) > threshold_make_cnt)
                         and (bull_power >= threshold_make_amount)
                         and (diff_yester_amount > 1)
@@ -2247,21 +2248,22 @@ class StockWindow(QMainWindow):
                     buy_cnt = self.getBuyCnt(buy_order_price, buy_def_price)
 
                     print("매수주문!!! :" + stock_code)
-                    print("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], diff_strong[%f]"
-                                         % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time, diff_strong))
+                    print("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], diff_yester[%f]"
+                                         % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power,
+                                            diff_time, diff_yester_amount))
 
                     self.log_edit.append("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], "
-                                         "diff_strong[%f], diff_yester[%f], diff_rotation[%f]"
+                                         "diff_yester[%f], diff_rotation[%f]"
                                          % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time,
-                                            diff_strong, diff_yester_amount, diff_rotation))
+                                            diff_yester_amount, diff_rotation))
 
                     if(not self.simulation_checkbox.isChecked()):
                         self.testAutoBuy(stock_code, 1, str(buy_order_price), str(buy_cnt))
                         self.f_log.write("=================== [%s] ===================" % (sys._getframe(1).f_code.co_name))
                         self.f_log.write("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], "
-                                         "diff_strong[%f], diff_yester[%f], diff_rotation[%f]"
+                                         "diff_yester[%f], diff_rotation[%f]"
                                          % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time,
-                                            diff_strong, diff_yester_amount, diff_rotation))
+                                            diff_yester_amount, diff_rotation))
                         self.f_log.write("||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
 
                         # Input data 저장 (검증용)
@@ -2290,9 +2292,6 @@ class StockWindow(QMainWindow):
                                      str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
                                      "]:\tORDER_PRICE[" + str(buy_order_price) + "]:\t" +
                                      "AMOUNT[" + str(buy_cnt) + "]:\t" +
-                                     "TOP_BUY[" + str(div_avg_low) + "]:\t" +
-                                     "DIFF_STR[" + str(diff_strong) + "]:\t" +
-                                     "STDEV[" + str(stdev_strong) + "]\n" +
                                      "DIFF_YESTER[" + str(diff_yester_amount) + "]\n" +
                                      "DIFF_ROTATION[" + str(diff_rotation) + "]\n" +
                                      "============================================================\n")
@@ -2303,22 +2302,19 @@ class StockWindow(QMainWindow):
                 else:
                     print(str(datetime.today()))
                     print("S================================================================")
-                    print("CODE[%s]:CON1[%s],CON2[%s],CON3[%s],CON4[%s],CON5[%s],CON6[%s]" %
+                    print("CODE[%s]:TRANS_CON1[%s],BULL_CON2[%s],YESTER_CON3[%s]" %
                                          ( stock_code,
                                             (self.trans_cnt.get(stock_code) > threshold_make_cnt),
                                            (bull_power >= threshold_make_amount),
-                                           (div_avg_low > threshold_div_avg_low),
-                                           (diff_strong > 0),
-                                           (diff_strong < threshold_diff_strong),
-                                           (stdev_strong < threshold_stdev_strong)
-                                           ) )
+                                           (diff_yester_amount > 1) and (diff_yester_amount < 5)
+                                           ))
 
-                    print("Code[%s]:CON1:ARG1[%d]:ARG2[%d]" % (stock_code, self.trans_cnt.get(stock_code), threshold_make_cnt))
-                    print("Code[%s]:CON2:ARG1[%f]:ARG2[%d]" % (stock_code, bull_power, threshold_make_amount))
-                    print("Code[%s]:CON3:ARG1[%f]:ARG2[%d]" % (stock_code, div_avg_low, threshold_div_avg_low))
-                    print("Code[%s]:CON4:ARG1[%f]:ARG2[%d]" % (stock_code, diff_strong, 0))
-                    print("Code[%s]:CON5:ARG1[%f]:ARG2[%d]" % (stock_code, diff_strong, threshold_diff_strong))
-                    print("Code[%s]:CON6:ARG1[%f]:ARG2[%d]" % (stock_code, stdev_strong, threshold_stdev_strong))
+                    print("Code[%s]:TRANS_CON1:ARG1[%d]:ARG2[%d]" % (stock_code, self.trans_cnt.get(stock_code), threshold_make_cnt))
+                    print("Code[%s]:BULL_CON2:ARG1[%f]:ARG2[%d]" % (stock_code, bull_power, threshold_make_amount))
+                    print("Code[%s]:YESTER_CON3:ARG1[%f]:ARG2[%d], ARG3[%d]" % (stock_code, diff_yester_amount, 1, 5))
+                    #print("Code[%s]:CON4:ARG1[%f]:ARG2[%d]" % (stock_code, diff_strong, 0))
+                    #print("Code[%s]:CON5:ARG1[%f]:ARG2[%d]" % (stock_code, diff_strong, threshold_diff_strong))
+                    #print("Code[%s]:CON6:ARG1[%f]:ARG2[%d]" % (stock_code, stdev_strong, threshold_stdev_strong))
 
                     print("E================================================================")
 
