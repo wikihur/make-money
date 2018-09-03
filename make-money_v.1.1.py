@@ -550,7 +550,7 @@ class StockWindow(QMainWindow):
 
         self.buy_def_edit = QLineEdit(self)
         self.buy_def_edit.setGeometry(win_width / 2 + 200, win_height / 16 + 200, 60, 30)
-        self.buy_def_edit.setText("100000")
+        self.buy_def_edit.setText("200000")
 
 
         btn_test_order_buy = QPushButton("매수 테스트", self)
@@ -867,7 +867,7 @@ class StockWindow(QMainWindow):
                         "950170", "140410", "078020", "086390", "032190"
                      ]
 
-        for f in self.kospi_100:
+        for f in self.kosdaq_100:
             self.set_real_start(f)
 
     def set_buy_condition_each_code(self):
@@ -2034,7 +2034,7 @@ class StockWindow(QMainWindow):
                 self.before_simul_date = split_data[0]
 
         # 체결시간 9시 전이면 return
-        if ( (abs(int(make_time)) < 90000) or (abs(int(make_time)) > 153000 )):
+        if ( (abs(int(make_time)) < 90030) or (abs(int(make_time)) > 153000 )):
             print("[before AM.9] or [after PM.3.30]")
             return
 
@@ -2253,17 +2253,17 @@ class StockWindow(QMainWindow):
                                             diff_time, diff_yester_amount))
 
                     self.log_edit.append("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], "
-                                         "diff_yester[%f], diff_rotation[%f]"
+                                         "diff_yester[%f], diff_rotation[%f], make_time[%s]"
                                          % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time,
-                                            diff_yester_amount, diff_rotation))
+                                            diff_yester_amount, diff_rotation, make_time))
 
                     if(not self.simulation_checkbox.isChecked()):
                         self.testAutoBuy(stock_code, 1, str(buy_order_price), str(buy_cnt))
-                        self.f_log.write("=================== [%s] ===================" % (sys._getframe(1).f_code.co_name))
+                        self.f_log.write("=================== [%s] ===================\n" % (sys._getframe(1).f_code.co_name))
                         self.f_log.write("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], "
-                                         "diff_yester[%f], diff_rotation[%f]"
+                                         "diff_yester[%f], diff_rotation[%f], make_time[%s]\n"
                                          % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time,
-                                            diff_yester_amount, diff_rotation))
+                                            diff_yester_amount, diff_rotation, make_time))
                         self.f_log.write("||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
 
                         # Input data 저장 (검증용)
@@ -3138,7 +3138,7 @@ class StockWindow(QMainWindow):
 
             value = self.commGetData(trCode, "", requestName, 0, "출력건수")
 
-            print("Value: %s" % value)
+            #print("Value: %s" % value)
             if(value is ""):
                 cnt = 0
             else:
