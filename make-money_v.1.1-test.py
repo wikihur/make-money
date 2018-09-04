@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import numpy
 import csv
 import re
+import os
 
 class ParameterTypeError(Exception):
     """ 파라미터 타입이 일치하지 않을 경우 발생하는 예외 """
@@ -630,12 +631,12 @@ class StockWindow(QMainWindow):
         self.rule1_flag_checkbox = QCheckBox("Rule1", self)
         self.rule1_flag_checkbox.move(win_width - 280, base_y)
         self.rule1_flag_checkbox.resize(100, 30)
-        self.rule1_flag_checkbox.setChecked(True)
+        self.rule1_flag_checkbox.setChecked(False)
 
         self.rule2_flag_checkbox = QCheckBox("Rule2", self)
         self.rule2_flag_checkbox.move(win_width - 280, base_y + 20)
         self.rule2_flag_checkbox.resize(100, 30)
-        self.rule2_flag_checkbox.setChecked(False)
+        self.rule2_flag_checkbox.setChecked(True)
 
         self.auto_trade_checkbox = QCheckBox("자동 매매", self)
         self.auto_trade_checkbox.move(win_width - 220, base_y)
@@ -669,29 +670,19 @@ class StockWindow(QMainWindow):
         # 자동매매 Flag (코드별)_Rule1
         self.code_auto_flag = {}
 
-        # 자동매매 Flag (코드별)_Rule2
-        self.code_auto_flag_rule_bull = {}
-
-        # 체결강도 차이를 위해
+        # Flag On 했을 때의 데이터 저장을 위해
         self.before_stock_data = {}
 
         # 매수호가가 한단계 올라갔을 때 시점의 체결 count 체크를 위한
         self.trans_cnt = {}
 
-        # 비교 조건 까지의 체결 Count 저장을 위한
-        self.trans_cnt_rule_bull = {}
-
         # 매수세 체크를 위해 Flag 가 시작된 시간 저장을 위한
         self.check_trans_time = {}
-
-        self.check_trans_time_rule_bull = {}
 
         # 체결 count 가 만족할 때 매수/매도 세를 저장하기 위한
         # trans_data[stock_code][0] = 매수체결량
         # trans_data[stock_code][1] = 매도체결량
         self.trans_data = {}
-
-        self.trans_data_rule_bull = {}
 
         # Sell order list
         self.sell_order_list = {}
@@ -701,6 +692,12 @@ class StockWindow(QMainWindow):
 
         # 체결 강도 표준편차를 위한
         self.stdev_strong = {}
+
+        # 전일 거래량 대비 비율 을 저장하기 위한
+        self.yesterday_amount = {}
+
+        # 거래 회전율을 저장하기 위한
+        self.amount_rotation = {}
 
         # kospi list
         self.kospi_code_list = []
@@ -736,6 +733,15 @@ class StockWindow(QMainWindow):
 
         self.th = {}
         self.list = 0
+
+        # 수익 및 보유 수량을 저장하기 위해
+        self.save_profit = 0
+        self.save_total_profit = 0
+        self.save_total_retention = []
+
+        # 1분간의 데이터를 저장하기 위해
+        self.make_buy_cnt = {}
+        self.make_sell_cnt = {}
 
     #def selectionCombo(self, i):
     #    print( self.order_dropcombo.currentText())
@@ -1546,35 +1552,59 @@ class StockWindow(QMainWindow):
                 self.csv_row_cnt = 0
                 filename = "C:/data/" + code + ".csv"
                 # filename = code + ".csv"
-                f = open(filename, "r", encoding='UTF8')
-                rdr = csv.reader(f)
 
-                # code = filename[30:36]
+                if os.path.exists(filename):
+                    f = open(filename, "r", encoding='UTF8')
+                    rdr = csv.reader(f)
 
-                for line in rdr:
-                    self.csv_row_cnt += 1
-                    #        print(line)
-                    line.append(code)
+                    # code = filename[30:36]
+
+                    for line in rdr:
+                        self.csv_row_cnt += 1
+                        #        print(line)
+                        line.append(code)
+                        if (self.rule1_flag_checkbox.isChecked() == True):
+                            self.checkCondition(line)
+                        if (self.rule2_flag_checkbox.isChecked() == True):
+                            self.checkCondition_rule_bull(line)
+
+
+                    # Today 정보를 파일에 쓰기 위해
+                    line[0] = "END"
                     if (self.rule1_flag_checkbox.isChecked() == True):
                         self.checkCondition(line)
                     if (self.rule2_flag_checkbox.isChecked() == True):
                         self.checkCondition_rule_bull(line)
+                    #self.checkCondition(line)
 
-
-                # Today 정보를 파일에 쓰기 위해
-                line[0] = "END"
-                if (self.rule1_flag_checkbox.isChecked() == True):
-                    self.checkCondition(line)
-                if (self.rule2_flag_checkbox.isChecked() == True):
-                    self.checkCondition_rule_bull(line)
-                #self.checkCondition(line)
-
-                f.close()
+                    f.close()
+                self.f_sim.write("RETENTION: %s\n" % (self.opw00018Data['stocks']))
+                self.f_sim.write("Profit : %d\n" % (self.save_profit))
                 self.f_sim.write("END[%s] ============================================================\n\n\n\n" % (code))
                 print("End Simulation for code:" + code)
 
+                self.save_total_profit += self.save_profit
+                self.save_total_retention.append((self.opw00018Data['stocks']))
+
+                self.opw00018Data = {'accountEvaluation': [], 'stocks': []}
+                self.save_period_data = {}
+                self.temp_csv_count = {}
+                self.before_save_sec = {}
+                self.save_profit = 0
+
             #self.f_sim.close()
             self.f_sim.flush()
+
+            self.f_sim.write("Total RETENTION: %s\n" % (self.save_total_retention))
+            self.f_sim.write("Total Profit : %d\n" % (self.save_total_profit))
+
+            # 초기화
+            self.opw00018Data = {'accountEvaluation': [], 'stocks': []}
+            self.save_period_data = {}
+            self.temp_csv_count = {}
+            self.before_save_sec = {}
+            self.save_total_retention = []
+            self.save_total_profit = 0
 
             print("End Simulation.....")
         else:
@@ -1773,23 +1803,6 @@ class StockWindow(QMainWindow):
                     ((before_hour * 3600) + (before_min * 60) + before_sec)
         return diff_time
 
-    def getDiffTime_rule_bull(self, stock_code, make_time):
-
-        if (not self.check_trans_time_rule_bull.get(stock_code)):
-            return 0
-
-        # 시간 차이 계산
-        before_hour = int(self.check_trans_time_rule_bull[stock_code][:2])
-        before_min = int(self.check_trans_time_rule_bull[stock_code][2:4])
-        before_sec = int(self.check_trans_time_rule_bull[stock_code][4:])
-
-        current_hour = int(make_time[:2])
-        current_min = int(make_time[2:4])
-        current_sec = int(make_time[4:])
-
-        diff_time = ((current_hour * 3600) + (current_min * 60) + current_sec) - \
-                    ((before_hour * 3600) + (before_min * 60) + before_sec)
-        return diff_time
 
     def getBuyCnt(self, current_price, buy_def_price):
         buy_cnt = 1
@@ -1803,6 +1816,7 @@ class StockWindow(QMainWindow):
 
         return buy_cnt
 
+    # 특정 초로 데이터를 저장 하기 위해 format 을 바꾸는 함수
     def changeDateFormat(self, data_date, make_time):
 
         h = make_time[:2]
@@ -1822,6 +1836,7 @@ class StockWindow(QMainWindow):
 
     def saveDataforPredict(self, data_list):
 
+        # 시뮬레이션이 아닐 때
         if(not self.simulation_checkbox.isChecked()):
             stock_code = data_list[0]
             current_price = abs(int(data_list[1]))
@@ -1835,6 +1850,7 @@ class StockWindow(QMainWindow):
 
         ds_data = self.changeDateFormat(data_date, make_time)
 
+        # 동일한 시간대에 들어온 data 는 처음 데이터를 제외하고 나머지는 Skip 하기 위해
         if (ds_data != self.before_save_sec.get(stock_code)):
             if not self.save_period_data.get(stock_code):
                 self.save_period_data[stock_code] = {'ds': [ds_data], 'y': [current_price]}
@@ -1907,6 +1923,7 @@ class StockWindow(QMainWindow):
                 break
 
         print("result file write")
+        # 입력된 데이터를 검증하기 위해 csv 로 저장
         forecast.to_csv(stock_code + "_result_ " + str(self.temp_csv_count[stock_code]) + ".csv")
         print("result file write end")
 
@@ -1916,6 +1933,19 @@ class StockWindow(QMainWindow):
             self.f_sim.write("\n\n---->>>>> Never BUY!!!!!\n\n")
 
         return buy_or_not
+
+    def saveInputDataToCSV(self, stock_code):
+
+        if (not self.temp_csv_count.get(stock_code)):
+            self.temp_csv_count[stock_code] = 1
+        else:
+            self.temp_csv_count[stock_code] += 1
+
+        df = pd.DataFrame(self.save_period_data[stock_code])
+
+        print("input data file write")
+        df.to_csv(stock_code + "_input_ " + str(self.temp_csv_count[stock_code]) + ".csv")
+
 
     def checkCondition(self, data_list):
         """
@@ -1949,6 +1979,9 @@ class StockWindow(QMainWindow):
         first_buy_price = abs(int(data_list[14]))
         make_strong = abs(float(data_list[19]))
 
+        yester_amount = abs(float(data_list[16]))
+        rotation = abs(float(data_list[17]))
+
         if(self.simulation_checkbox.isChecked()):
             stock_code = data_list[23]
             current_price = abs(int(data_list[2]))
@@ -1971,15 +2004,17 @@ class StockWindow(QMainWindow):
                 self.trans_data[stock_code] = [0, 0]
                 self.stdev_strong.clear()
                 self.top_buy_price.clear()
+                self.yesterday_amount.clear()
+                self.amount_rotation.clear()
                 self.before_simul_date = split_data[0]
 
         # 체결시간 9시 전이면 return
-        if ( (abs(int(make_time)) < 90000) or (abs(int(make_time)) > 153000 )):
+        if ((abs(int(make_time)) < 90000) or (abs(int(make_time)) > 153000)):
             print("[before AM.9] or [after PM.3.30]")
             return
 
         # 예측 데이터를 위해(prophet) 금일 프로그램 시작 부터 Data 저장
-        self.saveDataforPredict(data_list)
+        #self.saveDataforPredict(data_list)
 
         # 기본 매수량
         buy_cnt = 1
@@ -2028,10 +2063,24 @@ class StockWindow(QMainWindow):
             self.trans_cnt[stock_code] = 0
             self.trans_data[stock_code] = [0, 0]
             self.check_trans_time[stock_code] = make_time
+
             if (self.stdev_strong.get(stock_code)):
                 del self.stdev_strong[stock_code]
+
             if (self.top_buy_price.get(stock_code)):
                 del self.top_buy_price[stock_code]
+
+            # 전일 거래량대비 비율 저장 clear
+            if (self.yesterday_amount.get(stock_code)):
+                del self.yesterday_amount[stock_code]
+
+            # 거래 회전율 저장 clear
+            if (self.amount_rotation.get(stock_code)):
+                del self.amount_rotation[stock_code]
+
+            # 중간 데이터 clear
+            if(self.save_period_data.get(stock_code)):
+                del self.save_period_data[stock_code]
 
         # 기존에 최저가 보다 낮은 저가가 나왔을 때 최저가 변경
         if (self.lowest_price[stock_code] > low_price):
@@ -2042,10 +2091,24 @@ class StockWindow(QMainWindow):
             self.trans_cnt[stock_code] = 0
             self.trans_data[stock_code] = [0, 0]
             self.check_trans_time[stock_code] = make_time
+
             if (self.stdev_strong.get(stock_code)):
                 del self.stdev_strong[stock_code]
+
             if (self.top_buy_price.get(stock_code)):
                 del self.top_buy_price[stock_code]
+
+            # 전일 거래량대비 비율 저장 clear
+            if (self.yesterday_amount.get(stock_code)):
+                del self.yesterday_amount[stock_code]
+
+            # 거래 회전율 저장 clear
+            if (self.amount_rotation.get(stock_code)):
+                del self.amount_rotation[stock_code]
+
+            # 중간 데이터 clear
+            if (self.save_period_data.get(stock_code)):
+                del self.save_period_data[stock_code]
 
         # 자동 매수 Check Flag 가 Enable 되어있고, 자동 매매 Flag 도 Enable 되어있을 때
         if (self.code_auto_flag.get(stock_code) and self.auto_trade_checkbox.isChecked()):
@@ -2065,18 +2128,34 @@ class StockWindow(QMainWindow):
             diff_time = self.getDiffTime(stock_code, make_time)
 
             # 최우선 매수 호가 저장
-            if (self.top_buy_price.get(stock_code)):
-                #self.top_buy_price[stock_code] += first_buy_price
-                self.top_buy_price[stock_code].append(first_buy_price)
-            else:
-                #self.top_buy_price[stock_code] = first_buy_price
-                self.top_buy_price[stock_code] = [first_buy_price]
+            #if (self.top_buy_price.get(stock_code)):
+            #    self.top_buy_price[stock_code].append(first_buy_price)
+            #else:
+            #    self.top_buy_price[stock_code] = [first_buy_price]
 
             # 체결강도 저장
-            if (self.stdev_strong.get(stock_code)):
-                self.stdev_strong[stock_code].append(make_strong)
+            #if (self.stdev_strong.get(stock_code)):
+            #    self.stdev_strong[stock_code].append(make_strong)
+            #else:
+            #    self.stdev_strong[stock_code] = [make_strong]
+
+            # 전일거래량대비 비율 저장
+            if (self.yesterday_amount.get(stock_code)):
+                self.yesterday_amount[stock_code].append(yester_amount)
             else:
-                self.stdev_strong[stock_code] = [make_strong]
+                self.yesterday_amount[stock_code] = [yester_amount]
+
+            # 거래 회전율 저장
+            if (self.amount_rotation.get(stock_code)):
+                self.amount_rotation[stock_code].append(rotation)
+            else:
+                self.amount_rotation[stock_code] = [rotation]
+
+            # 검증을 위한 중간 데이터를 저장. 나중에 csv 로 저장
+            if not self.save_period_data.get(stock_code):
+                self.save_period_data[stock_code] = [data_list]
+            else:
+                self.save_period_data[stock_code].append(data_list)
 
             # 모니터링 시간이 threshold_make_time 을 넘겼을 때 Rule Check
             if (diff_time > threshold_make_time):
@@ -2087,36 +2166,53 @@ class StockWindow(QMainWindow):
                 else:
                     bull_power = (self.trans_data[stock_code][0] / self.trans_data[stock_code][1])
 
-                strong_arr = numpy.array(self.stdev_strong.get(stock_code))
+                #strong_arr = numpy.array(self.stdev_strong.get(stock_code))
 
                 # 체결강도 표준 편차, 1보다 작은 것으로 (편차가 작은)
-                stdev_strong = numpy.std(strong_arr)
+                #stdev_strong = numpy.std(strong_arr)
 
                 # 체결 강도가 커지면 매수세가 높음
-                diff_strong = strong_arr[-1] - strong_arr[0]
+                #diff_strong = strong_arr[-1] - strong_arr[0]
 
                 # 최우선 매수 호가 평균 , 1보다 크다는 것은 매수호가가 올라간 게 1개라도 있다는 것
-                top_buy_array = numpy.array(self.top_buy_price.get(stock_code))
-                top_buy_avg = numpy.mean(top_buy_array)
-                #top_buy_avg = self.top_buy_price.get(stock_code) / self.trans_cnt.get(stock_code)
+                #top_buy_array = numpy.array(self.top_buy_price.get(stock_code))
+                #top_buy_avg = numpy.mean(top_buy_array)
 
                 # 현재 저가와 최우선 매수호가 사이의 변동값
                 # 1이면 저가와 최우선 매수호가가 계속 같았던 것이고
                 # 1보다 높으면 최우선 매수호가가 올라가는 중
+                #div_avg_low = top_buy_avg / low_price
 
-                div_avg_low = top_buy_avg / low_price
+                # 전일거래량대비, Test 용
+                yester_amount_arr = numpy.array(self.yesterday_amount.get(stock_code))
+                diff_yester_amount = yester_amount_arr[-1] - yester_amount_arr[0]
+
+                # 거래 회전율, Test 용
+                rotation_arr = numpy.array(self.amount_rotation.get(stock_code))
+                diff_rotation = rotation_arr[-1] - rotation_arr[0]
 
                 print(str(datetime.today()))
-                print("Checking[%s]:cnt[%d],bull_power[%s],diff_time[%d],stdev[%s],diff_strong[%f],top_buy_avg[%s],div_avg_low[%s]"
-                      % (stock_code, self.trans_cnt[stock_code], str(bull_power), diff_time, str(stdev_strong), diff_strong, str(top_buy_avg), str(div_avg_low)))
+                print("Checking[%s]:cnt[%d],bull_power[%s],diff_time[%d]"
+                      % (stock_code, self.trans_cnt[stock_code], str(bull_power), diff_time))
 
                 # 진짜 Rule Check
-                if ((self.trans_cnt.get(stock_code) > threshold_make_cnt) and
-                        (bull_power >= threshold_make_amount) and
-                        (div_avg_low > threshold_div_avg_low) and
-                        (diff_strong > 0) and (diff_strong < threshold_diff_strong) and
-                        (stdev_strong < threshold_stdev_strong) ):
+                #if ((self.trans_cnt.get(stock_code) > threshold_make_cnt) and
+                #        (bull_power >= threshold_make_amount) ):
+                        #(div_avg_low > threshold_div_avg_low) and
+                        #(diff_strong > 0) and (diff_strong < threshold_diff_strong) and
+                        #(stdev_strong < threshold_stdev_strong) ):
 
+                if ((self.trans_cnt.get(stock_code) > threshold_make_cnt)
+                        and (bull_power >= threshold_make_amount)
+                        and (diff_yester_amount > 1)
+                        and (diff_yester_amount < 5)):
+
+                    #print("start predict")
+                    #predict_flag = self.checkPredict(stock_code, make_time, current_price, split_data[0])
+                    #print("end predict")
+
+                    # 예상 결과가 참일 때
+                    #if(predict_flag):
                     buy_order_price = 0
 
                     if ((first_sell_price - first_buy_price) > step_price):
@@ -2127,18 +2223,26 @@ class StockWindow(QMainWindow):
                     buy_cnt = self.getBuyCnt(buy_order_price, buy_def_price)
 
                     print("매수주문!!! :" + stock_code)
-                    print("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], diff_strong[%f]"
-                                         % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time, diff_strong))
+                    print("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], diff_yester[%f]"
+                                         % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power,
+                                            diff_time, diff_yester_amount))
 
-                    self.log_edit.append("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], diff_strong[%f]"
-                                         % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time, diff_strong))
+                    self.log_edit.append("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], "
+                                         "diff_yester[%f], diff_rotation[%f]"
+                                         % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time,
+                                            diff_yester_amount, diff_rotation))
 
                     if(not self.simulation_checkbox.isChecked()):
                         self.testAutoBuy(stock_code, 1, str(buy_order_price), str(buy_cnt))
-                        self.f_log.write("=================== [%s] ===================" % (sys._getframe(1).f_code.co_name))
-                        self.f_log.write("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], diff_strong[%f]\n"
-                                         % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time, diff_strong))
+                        self.f_log.write("=================== [%s] ===================\n" % (sys._getframe(1).f_code.co_name))
+                        self.f_log.write("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], "
+                                         "diff_yester[%f], diff_rotation[%f]\n"
+                                         % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time,
+                                            diff_yester_amount, diff_rotation))
                         self.f_log.write("||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
+
+                        # Input data 저장 (검증용)
+                        self.saveInputDataToCSV(stock_code)
 
                     else:
                         # Simulation 때는 바로 사는 것으로
@@ -2163,34 +2267,29 @@ class StockWindow(QMainWindow):
                                      str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
                                      "]:\tORDER_PRICE[" + str(buy_order_price) + "]:\t" +
                                      "AMOUNT[" + str(buy_cnt) + "]:\t" +
-                                     "TOP_BUY[" + str(div_avg_low) + "]:\t" +
-                                     "DIFF_STR[" + str(diff_strong) + "]:\t" +
-                                     "STDEV[" + str(stdev_strong) + "]\n" +
+                                     "DIFF_YESTER[" + str(diff_yester_amount) + "]\n" +
+                                     "DIFF_ROTATION[" + str(diff_rotation) + "]\n" +
                                      "============================================================\n")
 
-                        print("start predict")
-                        self.checkPredict(stock_code, make_time, current_price, split_data[0])
-                        print("end predict")
+                        # Input data 저장 (검증용)
+                        self.saveInputDataToCSV(stock_code)
 
                 else:
                     print(str(datetime.today()))
                     print("S================================================================")
-                    print("CODE[%s]:CON1[%s],CON2[%s],CON3[%s],CON4[%s],CON5[%s],CON6[%s]" %
+                    print("CODE[%s]:TRANS_CON1[%s],BULL_CON2[%s],YESTER_CON3[%s]" %
                                          ( stock_code,
                                             (self.trans_cnt.get(stock_code) > threshold_make_cnt),
                                            (bull_power >= threshold_make_amount),
-                                           (div_avg_low > threshold_div_avg_low),
-                                           (diff_strong > 0),
-                                           (diff_strong < threshold_diff_strong),
-                                           (stdev_strong < threshold_stdev_strong)
-                                           ) )
+                                           (diff_yester_amount > 1) and (diff_yester_amount < 5)
+                                           ))
 
-                    print("Code[%s]:CON1:ARG1[%d]:ARG2[%d]" % (stock_code, self.trans_cnt.get(stock_code), threshold_make_cnt))
-                    print("Code[%s]:CON2:ARG1[%f]:ARG2[%d]" % (stock_code, bull_power, threshold_make_amount))
-                    print("Code[%s]:CON3:ARG1[%f]:ARG2[%d]" % (stock_code, div_avg_low, threshold_div_avg_low))
-                    print("Code[%s]:CON4:ARG1[%f]:ARG2[%d]" % (stock_code, diff_strong, 0))
-                    print("Code[%s]:CON5:ARG1[%f]:ARG2[%d]" % (stock_code, diff_strong, threshold_diff_strong))
-                    print("Code[%s]:CON6:ARG1[%f]:ARG2[%d]" % (stock_code, stdev_strong, threshold_stdev_strong))
+                    print("Code[%s]:TRANS_CON1:ARG1[%d]:ARG2[%d]" % (stock_code, self.trans_cnt.get(stock_code), threshold_make_cnt))
+                    print("Code[%s]:BULL_CON2:ARG1[%f]:ARG2[%d]" % (stock_code, bull_power, threshold_make_amount))
+                    print("Code[%s]:YESTER_CON3:ARG1[%f]:ARG2[%d], ARG3[%d]" % (stock_code, diff_yester_amount, 1, 5))
+                    #print("Code[%s]:CON4:ARG1[%f]:ARG2[%d]" % (stock_code, diff_strong, 0))
+                    #print("Code[%s]:CON5:ARG1[%f]:ARG2[%d]" % (stock_code, diff_strong, threshold_diff_strong))
+                    #print("Code[%s]:CON6:ARG1[%f]:ARG2[%d]" % (stock_code, stdev_strong, threshold_stdev_strong))
 
                     print("E================================================================")
 
@@ -2201,6 +2300,19 @@ class StockWindow(QMainWindow):
                 self.trans_data[stock_code] = [0, 0]
                 self.stdev_strong.clear()
                 self.top_buy_price.clear()
+
+                # 전일 거래량대비 비율 저장 clear
+                if (self.yesterday_amount.get(stock_code)):
+                    del self.yesterday_amount[stock_code]
+
+                # 거래 회전율 저장 clear
+                if (self.amount_rotation.get(stock_code)):
+                    del self.amount_rotation[stock_code]
+
+                # 중간 데이터 clear
+                if (self.save_period_data.get(stock_code)):
+                    del self.save_period_data[stock_code]
+
 
         # Sell
         if (self.auto_trade_checkbox.isChecked()):
@@ -2264,15 +2376,20 @@ class StockWindow(QMainWindow):
                             print("Sell[%s]count[%s]" % (stock_code, str(stock_list[2])))
                             self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
                                                  ", 수량: " + str(stock_list[2]))
+                            print(self.opw00018Data['stocks'])
+                            #self.f_sim.write(self.opw00018Data['stocks'])
 
+                            amount = int(stock_list[2])
+                            profit = (sell_order_price - int(stock_list[3])) * amount
                             self.f_sim.write("============================================================\n" +
                                          "[" + split_data[0] + "][SELL]:LINE[" + str(self.csv_row_cnt) +
                                          "]:\tCODE[" + stock_code + "]:" +
                                          "\tPRICE[" + str(sell_order_price) + "]:" +
-                                         "\tAMOUNT[" + str(stock_list[2]) + "]:" +
-                                         "\tPROFIT[" + str((sell_order_price - int(stock_list[3])) * int(stock_list[2])) + "]:" +
+                                         "\tAMOUNT[" + str(amount) + "]:" +
+                                         "\tPROFIT[" + str(profit) + "]:" +
                                          "\n" + "============================================================\n")
 
+                            self.save_profit += (profit)
                             del self.opw00018Data['stocks'][:]
 
                 # count  #stock_list[2]
@@ -2281,8 +2398,7 @@ class StockWindow(QMainWindow):
     def checkCondition_rule_bull(self, data_list):
         """
             새로운 룰
-            - 매수, 매도 호가의 차이 크기 가 특정 시점이 될 때
-            - 매수세를 확인하여 매수, 시뮬레이션 결과를 바탕으로
+            - 1분동안 매수세, 전일 거래량 확인
          """
 
         if (len(data_list) == 0 or len(data_list) < 23):
@@ -2310,6 +2426,9 @@ class StockWindow(QMainWindow):
         first_buy_price = abs(int(data_list[14]))
         make_strong = abs(float(data_list[19]))
 
+        yester_amount = abs(float(data_list[16]))
+        rotation = abs(float(data_list[17])) * 100
+
         if(self.simulation_checkbox.isChecked()):
             stock_code = data_list[23]
             current_price = abs(int(data_list[2]))
@@ -2323,92 +2442,162 @@ class StockWindow(QMainWindow):
 
             split_data = re.split(" ", simul_date)
             if (self.before_simul_date != split_data[0]):
-                self.code_auto_flag_rule_bull[stock_code] = False
-                self.trans_cnt_rule_bull[stock_code] = 0
-                self.trans_data_rule_bull[stock_code] = [0, 0]
+                self.code_auto_flag[stock_code] = False
+
+                if(self.lowest_price.get(stock_code)):
+                    del self.lowest_price[stock_code]
+
+                self.trans_cnt[stock_code] = 0
+                self.trans_data[stock_code] = [0, 0]
+                self.stdev_strong.clear()
+                self.top_buy_price.clear()
+                self.yesterday_amount.clear()
+                self.amount_rotation.clear()
                 self.before_simul_date = split_data[0]
 
         # 체결시간 9시 전이면 return
-        if (abs(int(make_time)) < 90000):
-            print("[before AM.9]")
+        if ((abs(int(make_time)) < 90030) or (abs(int(make_time)) > 153000)):
+            print("[before AM.9] or [after PM.3.30]")
             return
 
         # 기본 매수량
         buy_cnt = 1
 
-        # 매수시 주문 기준 금액 (20만원)
+        # 매수시 주문 기준 금액 (10만원)
         buy_def_price = int(self.buy_def_edit.text())
 
         # 수익률 0.8%
         #profit_rate = 1.008
         profit_rate = 1.0 + abs(float(self.profit_edit.text()) / 100)
 
-        # 손절매 -3%
+        # 손절매 -2%
         #loss_rate = 0.97
         loss_rate = 1.0 - abs(float(self.loss_edit.text()) / 100)
 
         # 체결 list 건수가 아래 이상일 때
         threshold_make_cnt = 100
 
-        # Step Level 이 특정 Level 로 변경된 후 기다리는 시간 (초)
+        # 체결강도(매수/매도)(매수세:bull_power) 의 비율이 아래 이상일 때
+        threshold_make_amount = 2
+
+        # 저가가 변경된 후 기다리는 시간 (초)
         threshold_make_time = 60
 
         # 호가 단위 금액을 저장하기 위한
         step_price = self.getStepPrice(stock_code, current_price)
 
-        # 최우선 매도 호가 - 최우선 매수 호가 : step_level 로 비교
-        diff_sell_buy = first_sell_price - first_buy_price
 
-        if(self.buy_rule.get(stock_code)):
-            # 각 코드 별 시뮬레이션으로 값을 가지고 있음.
-            step_price_level = self.buy_rule[stock_code][0]
+        if (not self.code_auto_flag.get(stock_code)):
+            print("Enable code auto flag" )
 
-            # 체결강도(매수/매도)(매수세:bull_power) 의 비율이 아래 이상일 때
-            threshold_make_amount = self.buy_rule[stock_code][1]
-        else:
-            # 각 코드 별 시뮬레이션으로 값이 없으면.. 특정 값으로 설정.
-            print("Please check buy rule for code [%s]" % (stock_code))
-            step_price_level = 7
-            threshold_make_amount = 5
+            self.code_auto_flag[stock_code] = True
+            self.lowest_price[stock_code] = low_price
+            self.trans_cnt[stock_code] = 0
+            self.trans_data[stock_code] = [0, 0]
+            self.check_trans_time[stock_code] = make_time
+
+            self.before_stock_data[stock_code] = current_price
+
+            if (self.stdev_strong.get(stock_code)):
+                del self.stdev_strong[stock_code]
+
+            if (self.top_buy_price.get(stock_code)):
+                del self.top_buy_price[stock_code]
+
+            # 전일 거래량대비 비율 저장 clear
+            if (self.yesterday_amount.get(stock_code)):
+                del self.yesterday_amount[stock_code]
+
+            # 거래 회전율 저장 clear
+            if (self.amount_rotation.get(stock_code)):
+                del self.amount_rotation[stock_code]
+
+            # 중간 데이터 clear
+            if (self.save_period_data.get(stock_code)):
+                del self.save_period_data[stock_code]
 
 
-        # 최우선 매도 호가와 최우선 매수 호가 차이가 지정된 level 보다 같거나 높을 때 Enable Flag
-        if(diff_sell_buy >= (step_price * step_price_level)):
-            print("Enable Flag[%s] : 매수/매도 호가 차이 변동 [%d], Rule:[%d], Level:[%d]" %
-                  (stock_code, diff_sell_buy, (step_price * step_price_level), step_price_level) )
-            self.code_auto_flag_rule_bull[stock_code] = True
-            self.before_csv_row_cnt = self.csv_row_cnt
-            self.check_trans_time_rule_bull[stock_code] = make_time
-            self.trans_data_rule_bull[stock_code] = [0, 0]
-
-        if( self.code_auto_flag_rule_bull.get(stock_code) ):
+        # 자동 매수 Check Flag 가 Enable 되어있고, 자동 매매 Flag 도 Enable 되어있을 때
+        if (self.code_auto_flag.get(stock_code) and self.auto_trade_checkbox.isChecked()):
 
             # 체결 Count 저장
-            if (self.trans_cnt_rule_bull.get(stock_code)):
-                self.trans_cnt_rule_bull[stock_code] += 1
+            if (self.trans_cnt.get(stock_code)):
+                self.trans_cnt[stock_code] += 1
             else:
-                self.trans_cnt_rule_bull[stock_code] = 1
+                self.trans_cnt[stock_code] = 1
 
-            # 매수/매도 체결량 저장
-            if(make_amount > 0):
-                self.trans_data_rule_bull[stock_code][0] += make_amount
+            if (make_amount > 0):
+                self.trans_data[stock_code][0] += make_amount
             else:
-                self.trans_data_rule_bull[stock_code][1] += abs(make_amount)
+                self.trans_data[stock_code][1] += abs(make_amount)
 
             # 시간 차이 계산
-            diff_time = self.getDiffTime_rule_bull(stock_code, make_time)
+            diff_time = self.getDiffTime(stock_code, make_time)
+
+            # 체결강도 저장
+            if (self.stdev_strong.get(stock_code)):
+                self.stdev_strong[stock_code].append(make_strong)
+            else:
+                self.stdev_strong[stock_code] = [make_strong]
+
+            # 전일거래량대비 비율 저장
+            if (self.yesterday_amount.get(stock_code)):
+                self.yesterday_amount[stock_code].append(yester_amount)
+            else:
+                self.yesterday_amount[stock_code] = [yester_amount]
+
+            # 거래 회전율 저장
+            if (self.amount_rotation.get(stock_code)):
+                self.amount_rotation[stock_code].append(rotation)
+            else:
+                self.amount_rotation[stock_code] = [rotation]
+
+            # 검증을 위한 중간 데이터를 저장. 나중에 csv 로 저장
+            if not self.save_period_data.get(stock_code):
+                self.save_period_data[stock_code] = [data_list]
+            else:
+                self.save_period_data[stock_code].append(data_list)
 
             # 모니터링 시간이 threshold_make_time 을 넘겼을 때 Rule Check
             if (diff_time > threshold_make_time):
 
                 # 매수세를 확인하기 위한
-                if (self.trans_data_rule_bull[stock_code][1] == 0):
+                if (self.trans_data[stock_code][1] == 0):
                     bull_power = 0
                 else:
-                    bull_power = (self.trans_data_rule_bull[stock_code][0] / self.trans_data_rule_bull[stock_code][1])
+                    bull_power = (self.trans_data[stock_code][0] / self.trans_data[stock_code][1])
 
-                # 매수세가 특정 이상일 때
-                if ((bull_power >= threshold_make_amount)):
+                # 체결강도 차이, Test 용
+                stdev_strong_arr = numpy.array(self.stdev_strong.get(stock_code))
+                diff_stdev_strong = stdev_strong_arr[-1] - stdev_strong_arr[0]
+
+                # 전일거래량대비, Test 용
+                yester_amount_arr = numpy.array(self.yesterday_amount.get(stock_code))
+                diff_yester_amount = yester_amount_arr[-1] - yester_amount_arr[0]
+
+                # 거래 회전율, Test 용
+                rotation_arr = numpy.array(self.amount_rotation.get(stock_code))
+                diff_rotation = rotation_arr[-1] - rotation_arr[0]
+
+                print("SYSTEM_TIME[%s], MAKE_TIME[%s]" % (str(datetime.today()), make_time))
+                print("Checking[%s]:cnt[%d],bull_power[%s],diff_time[%d]"
+                      % (stock_code, self.trans_cnt[stock_code], str(bull_power), diff_time))
+
+                # 진짜 Rule Check
+                if ( #(self.before_stock_data.get(stock_code) < current_price )
+                        (bull_power >= threshold_make_amount)
+                        #and (self.trans_cnt.get(stock_code) > threshold_make_cnt)
+                        #and (self.trans_cnt.get(stock_code) >= diff_time)
+                        and (diff_yester_amount > 3)
+                        #and (diff_yester_amount <= 5)
+                        #and (diff_rotation >= 1)
+                        #and (diff_stdev_strong >= 5)
+                        #and (diff_stdev_strong <= 10)
+                ):
+
+                        #and (diff_yester_amount > 1)
+                        #and (diff_yester_amount < 5)):
+
                     buy_order_price = 0
 
                     if ((first_sell_price - first_buy_price) > step_price):
@@ -2416,31 +2605,31 @@ class StockWindow(QMainWindow):
                     else:
                         buy_order_price = first_sell_price
 
-                    buy_cnt = self.getBuyCnt(current_price, buy_def_price)
+                    buy_cnt = self.getBuyCnt(buy_order_price, buy_def_price)
 
                     print("매수주문!!! :" + stock_code)
-                    print("매수 주문[%s], 가격:[%d], 수량[%d], trans_cnt[%d], BULL[%f], buy_amount[%d], sell_amount[%d], diff_time[%d], set_bull[%d]"
-                            % (stock_code, buy_order_price, buy_cnt, self.trans_cnt_rule_bull[stock_code], bull_power,
-                               self.trans_data_rule_bull[stock_code][0], self.trans_data_rule_bull[stock_code][1],
-                               diff_time, threshold_make_amount))
+                    print("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], diff_yester[%f]"
+                                         % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power,
+                                            diff_time, diff_yester_amount))
 
-                    self.log_edit.append("매수주문[%s], 가격:[%d], 수량[%d], BULL[%f], diff_time[%d], set_bull[%d]"
-                            % (stock_code, buy_order_price, buy_cnt, bull_power,diff_time, threshold_make_amount))
+                    self.log_edit.append("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], "
+                                         "diff_yester[%f], diff_rotation[%f]"
+                                         % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time,
+                                            diff_yester_amount, diff_rotation))
 
-                    if (not self.simulation_checkbox.isChecked()):
-
+                    if(not self.simulation_checkbox.isChecked()):
                         self.testAutoBuy(stock_code, 1, str(buy_order_price), str(buy_cnt))
-                        self.f_log.write(
-                            "=================== [%s] ===================" % (sys._getframe(1).f_code.co_name))
-                        self.f_log.write(
-                            "매수 주문[%s], 가격:[%d], 수량[%d], trans_cnt[%d], BULL[%f], buy_amount[%d], sell_amount[%d], diff_time[%d], set_bull[%d] \n"
-                            % (stock_code, buy_order_price, buy_cnt, self.trans_cnt_rule_bull[stock_code], bull_power,
-                               self.trans_data_rule_bull[stock_code][0], self.trans_data_rule_bull[stock_code][1],
-                               diff_time, threshold_make_amount))
+                        self.f_log.write("=================== [%s] ===================\n" % (sys._getframe(1).f_code.co_name))
+                        self.f_log.write("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], "
+                                         "diff_yester[%f], diff_rotation[%f], make_time[%s]\n"
+                                         % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time,
+                                            diff_yester_amount, diff_rotation, make_time))
                         self.f_log.write("||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
 
-                    else:
+                        # Input data 저장 (검증용)
+                        self.saveInputDataToCSV(stock_code)
 
+                    else:
                         # Simulation 때는 바로 사는 것으로
                         if (self.opw00018Data['stocks']):
                             retention_cnt = int(self.opw00018Data['stocks'][0][2])
@@ -2456,37 +2645,55 @@ class StockWindow(QMainWindow):
                             list_data = ["A" + stock_code, "SIMULATION", buy_cnt, str(buy_order_price)]
                             self.opw00018Data['stocks'].append(list_data)
 
-                        self.f_sim.write("============================================================\n")
-                        self.f_sim.write("[%s][RULE2][BUY ]:FLAG_LINE[%d]:LINE[%d]\tCODE[%s]\tBULL[%f]\tDIFF_T[%d]\tORDER_PRICE[%d]\t" %
-                                         (split_data[0], self.before_csv_row_cnt, self.csv_row_cnt, stock_code, bull_power, diff_time,
-                                          buy_order_price))
-                        self.f_sim.write("AMOUNT[%d]\tT_CNT[%d]\tB_A[%d]\tS_A[%d]\tset_bull[%d]\n" %
-                                         ( buy_cnt,
-                                             self.trans_cnt_rule_bull[stock_code],
-                                           self.trans_data_rule_bull[stock_code][0],
-                                           self.trans_data_rule_bull[stock_code][1],
-                                           threshold_make_amount)
-                                         )
-                        self.f_sim.write("============================================================\n")
+                        self.f_sim.write("============================================================\n" +
+                                     "[" + split_data[0] + "][RULE1][BUY ]:LINE[" + str(self.csv_row_cnt) +
+                                     "]:\tCODE[" + stock_code + "]:\tCNT[" +
+                                     str(self.trans_cnt.get(stock_code)) + "]:\tBULL[" +
+                                     str(bull_power) + "]:\tDIFF_T[" + str(diff_time) +
+                                     "]:\tORDER_PRICE[" + str(buy_order_price) + "]:\t" +
+                                     "AMOUNT[" + str(buy_cnt) + "]:\t" +
+                                     "DIFF_YESTER[" + str(diff_yester_amount) + "]\t" +
+                                     "DIFF_ROTATION[" + str(diff_rotation) + "]\t" +
+                                     "MAKE_TIME[" + make_time + "]\t" +
+                                     "DIFF_STRONG[" + str(diff_stdev_strong) + "]\n" +
+                                     "============================================================\n")
 
-                    ## 초기화
-                    self.code_auto_flag_rule_bull[stock_code] = False
-                    self.trans_data_rule_bull[stock_code] = [0, 0]
-                    self.trans_cnt_rule_bull[stock_code] = 0
+                        # Input data 저장 (검증용)
+                        #self.saveInputDataToCSV(stock_code)
 
                 else:
-                    print(str(datetime.today()))
+                    print("SYSTEM_TIME[%s], MAKE_TIME[%s]" % (str(datetime.today()), make_time ))
                     print("S================================================================")
-                    print("CODE[%s]:CON1[%s]" %
-                                         ( stock_code, (bull_power >= threshold_make_amount) ) )
+                    print("CODE[%s]:TRANS_CON1[%s],BULL_CON2[%s],YESTER_CON3[%s]" %
+                                         ( stock_code,
+                                            (self.trans_cnt.get(stock_code) > threshold_make_cnt),
+                                           (bull_power >= threshold_make_amount),
+                                           (diff_yester_amount > 1) and (diff_yester_amount < 5)
+                                           ))
 
-                    print("Code[%s]:CON1:ARG1[%f]:ARG2[%f]" % (stock_code, bull_power, threshold_make_amount))
+                    print("Code[%s]:TRANS_CON1:ARG1[%d]:ARG2[%d]" % (stock_code, self.trans_cnt.get(stock_code), threshold_make_cnt))
+                    print("Code[%s]:BULL_CON2:ARG1[%f]:ARG2[%d]" % (stock_code, bull_power, threshold_make_amount))
+                    print("Code[%s]:YESTER_CON3:ARG1[%f]:ARG2[%d], ARG3[%d]" % (stock_code, diff_yester_amount, 1, 5))
                     print("E================================================================")
 
-                ## 초기화
-                #self.code_auto_flag_rule_bull[stock_code] = False
-                #self.trans_data_rule_bull[stock_code] = [0, 0]
-                #self.trans_cnt_rule_bull[stock_code] = 0
+                # 초기화
+                self.code_auto_flag[stock_code] = False
+                self.trans_cnt[stock_code] = 0
+                self.trans_data[stock_code] = [0, 0]
+                self.stdev_strong.clear()
+                self.top_buy_price.clear()
+
+                # 전일 거래량대비 비율 저장 clear
+                if (self.yesterday_amount.get(stock_code)):
+                    del self.yesterday_amount[stock_code]
+
+                # 거래 회전율 저장 clear
+                if (self.amount_rotation.get(stock_code)):
+                    del self.amount_rotation[stock_code]
+
+                # 중간 데이터 clear
+                if (self.save_period_data.get(stock_code)):
+                    del self.save_period_data[stock_code]
 
 
         # Sell
@@ -2551,15 +2758,20 @@ class StockWindow(QMainWindow):
                             print("Sell[%s]count[%s]" % (stock_code, str(stock_list[2])))
                             self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
                                                  ", 수량: " + str(stock_list[2]))
+                            print(self.opw00018Data['stocks'])
+                            #self.f_sim.write(self.opw00018Data['stocks'])
 
+                            amount = int(stock_list[2])
+                            profit = (sell_order_price - int(stock_list[3])) * amount
                             self.f_sim.write("============================================================\n" +
                                          "[" + split_data[0] + "][SELL]:LINE[" + str(self.csv_row_cnt) +
                                          "]:\tCODE[" + stock_code + "]:" +
                                          "\tPRICE[" + str(sell_order_price) + "]:" +
-                                         "\tAMOUNT[" + str(stock_list[2]) + "]:" +
-                                         "\tPROFIT[" + str( (sell_order_price - int(stock_list[3])) * int(stock_list[2]) ) + "]:" +
+                                         "\tAMOUNT[" + str(amount) + "]:" +
+                                         "\tPROFIT[" + str(profit) + "]:" +
                                          "\n" + "============================================================\n")
 
+                            self.save_profit += (profit)
                             del self.opw00018Data['stocks'][:]
 
                 # count  #stock_list[2]
