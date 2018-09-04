@@ -10,6 +10,7 @@ import numpy
 import csv
 import re
 import os
+import time
 
 class ParameterTypeError(Exception):
     """ 파라미터 타입이 일치하지 않을 경우 발생하는 예외 """
@@ -651,7 +652,7 @@ class StockWindow(QMainWindow):
         self.simulation_checkbox = QCheckBox("Simulation", self)
         self.simulation_checkbox.move(win_width - 220, base_y + 40)
         self.simulation_checkbox.resize(100, 30)
-        self.simulation_checkbox.setChecked(False)
+        self.simulation_checkbox.setChecked(True)
 
         self.createKiwoomInstance()
         self.setSignalSlots()
@@ -738,6 +739,14 @@ class StockWindow(QMainWindow):
         self.save_profit = 0
         self.save_total_profit = 0
         self.save_total_retention = []
+
+        self.save_buy_amount = 0
+        self.save_total_buy_amount = 0
+        self.save_sell_amount = 0
+        self.save_total_sell_amount = 0
+
+        self.save_buy_data = {}
+        self.save_sell_data = {}
 
         # 1분간의 데이터를 저장하기 위해
         self.make_buy_cnt = {}
@@ -862,130 +871,6 @@ class StockWindow(QMainWindow):
         for f in self.kospi_100:
             self.set_real_start(f)
 
-    def set_buy_condition_each_code(self):
-        """
-        self.buy_rule = {
-            "033780":[3,1],
-            "010950":[3,3],
-            "068270":[3,8],
-            "086390":[3,9],
-            "034230":[4,1],
-            "046110":[4,1],
-            "017670":[4,2],
-            "048260":[4,2],
-            "006400":[4,4],
-            "015760":[4,4],
-            "051910":[4,4],
-            "067630":[4,5],
-            "005490":[4,6],
-            "089600":[4,7],
-            "108320":[4,7],
-            "006730":[4,8],
-            "130960":[4,9],
-            "045390":[5,1],
-            "086520":[5,1],
-            "000270":[5,3],
-            "023410":[5,4],
-            "035810":[5,5],
-            "055550":[5,7],
-            "022100":[5,9],
-            "038540":[5,9],
-            "122870":[5,10],
-            "003550":[6,2],
-            "086790":[6,2],
-            "043150":[6,2],
-            "086450":[6,2],
-            "090430":[6,3],
-            "033290":[6,3],
-            "178920":[6,6],
-            "039030":[6,7],
-            "183490":[6,7],
-            "000810":[7,3],
-            "007390":[7,3],
-            "215600":[7,3],
-            "090460":[7,3],
-            "036420":[7,4],
-            "112040":[7,4],
-            "237690":[7,4],
-            "207940":[7,5],
-            "028150":[7,7],
-            "025980":[7,8]
-            }
-        """
-        self.buy_rule = {
-            "000030": [3, 3],
-            "000660": [3, 8],
-            "000810": [5, 9],
-            "003410": [7, 5],
-            "004020": [4, 7],
-            "004800": [4, 2],
-            "004990": [4, 7],
-            "005490": [4, 5],
-            "005690": [5, 2],
-            "006040": [6, 2],
-            "006360": [6, 1],
-            "006400": [7, 1],
-            "008770": [3, 5],
-            "008930": [5, 2],
-            "009540": [6, 5],
-            "010130": [5, 6],
-            "012330": [3, 4],
-            "015760": [4, 4],
-            "029780": [4, 2],
-            "033780": [4, 1],
-            "034730": [4, 7],
-            "035420": [3, 10],
-            "051910": [4, 6],
-            "055550": [6, 3],
-            "069960": [3, 7],
-            "079440": [6, 6],
-            "086790": [6, 2],
-            "088350": [2, 7],
-            "090430": [5, 4],
-            "093050": [3, 5],
-            "138930": [5, 1],
-            "207940": [6, 6],
-            "282330": [3, 9],
-            "006730": [4, 4],
-            "007390": [7, 3],
-            "022100": [5, 4],
-            "023410": [4, 6],
-            "025980": [6, 9],
-            "028150": [7, 9],
-            "030190": [5, 1],
-            "033290": [7, 1],
-            "035810": [5, 5],
-            "036420": [5, 7],
-            "038540": [5, 2],
-            "039200": [6, 1],
-            "041510": [7, 3],
-            "043150": [6, 2],
-            "044180": [3, 1],
-            "045390": [5, 1],
-            "058820": [7, 6],
-            "064760": [7, 10],
-            "067630": [4, 8],
-            "073070": [7, 5],
-            "083790": [5, 2],
-            "086390": [3, 3],
-            "086450": [6, 2],
-            "086520": [5, 1],
-            "089600": [4, 6],
-            "090460": [7, 3],
-            "095610": [3, 6],
-            "096530": [3, 7],
-            "108320": [7, 3],
-            "112040": [7, 4],
-            "122870": [5, 3],
-            "130960": [4, 6],
-            "178920": [6, 6],
-            "183490": [6, 7],
-            "200130": [7, 3],
-            "200230": [5, 10],
-            "215600": [7, 3],
-            "237690": [7, 4]
-        }
-
     def btn_total_real_stop_clicked(self):
 
         if self.simulation_checkbox.isChecked():
@@ -1098,7 +983,6 @@ class StockWindow(QMainWindow):
         self.commConnect()
         self.getCodeList()
         self.getAccountInfo()
-        self.set_buy_condition_each_code()
         #self.btn_query_account_clicked()
 
     # 종목 코드 받기 함수
@@ -1198,7 +1082,6 @@ class StockWindow(QMainWindow):
 
     def btn_simulation_test_clicked(self):
         print("Simulation Start")
-        self.set_buy_condition_each_code()
         if(self.simulation_checkbox.isChecked()):
 
             # kospi list
@@ -1548,9 +1431,10 @@ class StockWindow(QMainWindow):
                                      '950110', '950170', '950130', '950140', '950160', '900280', '900040', '900120',
                                      '900250', '900070', '900100', '']
 
+            start_time = time.time()
             for code in self.realtimeList:
                 self.csv_row_cnt = 0
-                filename = "C:/data/" + code + ".csv"
+                filename = "D:/data/" + code + ".csv"
                 # filename = code + ".csv"
 
                 if os.path.exists(filename):
@@ -1580,23 +1464,52 @@ class StockWindow(QMainWindow):
                     f.close()
                 self.f_sim.write("RETENTION: %s\n" % (self.opw00018Data['stocks']))
                 self.f_sim.write("Profit : %d\n" % (self.save_profit))
+                self.f_sim.write("Buy Amount : %d\n" % (self.save_buy_amount))
+                self.f_sim.write("Sell Amount : %d\n" % (self.save_sell_amount))
+
+                if (self.save_sell_amount != 0):
+                    self.f_sim.write(
+                        "Realized_income : %.2f %%\n" % ((self.save_profit / self.save_sell_amount) * 100))
+                else:
+                    self.f_sim.write("Realized_income : 0\n")
+
                 self.f_sim.write("END[%s] ============================================================\n\n\n\n" % (code))
                 print("End Simulation for code:" + code)
 
                 self.save_total_profit += self.save_profit
                 self.save_total_retention.append((self.opw00018Data['stocks']))
+                self.save_total_buy_amount += self.save_buy_amount
+                self.save_total_sell_amount += self.save_sell_amount
 
                 self.opw00018Data = {'accountEvaluation': [], 'stocks': []}
                 self.save_period_data = {}
                 self.temp_csv_count = {}
                 self.before_save_sec = {}
                 self.save_profit = 0
+                self.save_buy_amount = 0
+                self.save_sell_amount = 0
+
 
             #self.f_sim.close()
             self.f_sim.flush()
 
-            self.f_sim.write("Total RETENTION: %s\n" % (self.save_total_retention))
+            self.f_sim.write("Total RETENTION LIST: %s\n" % (self.save_total_retention))
+            retention_amount = 0
+            for stock in self.save_total_retention:
+                print(stock)
+                if stock:
+                    retention_amount += int(stock[0][2]) * int(stock[0][3])
+
+            self.f_sim.write("Total RETENTION PRICE: %d\n" % (retention_amount))
             self.f_sim.write("Total Profit : %d\n" % (self.save_total_profit))
+            self.f_sim.write("Total Buy Amount : %d\n" % (self.save_total_buy_amount))
+            self.f_sim.write("Total Sell Amount : %d\n" % (self.save_total_sell_amount))
+
+            if( self.save_total_sell_amount != 0 ):
+                self.f_sim.write("Total Realized_income : %.2f %% \n" %
+                                 ( (self.save_total_profit / self.save_total_sell_amount) * 100) )
+            else:
+                self.f_sim.write("Total Realized_income : 0\n")
 
             # 초기화
             self.opw00018Data = {'accountEvaluation': [], 'stocks': []}
@@ -1607,6 +1520,51 @@ class StockWindow(QMainWindow):
             self.save_total_profit = 0
 
             print("End Simulation.....")
+            print("----- %s seconds -----" % (time.time() - start_time))
+
+            date_buy_sep = {}
+            date_sell_sep = {}
+
+            self.f_sim.write("############# Summary ############# \n")
+            self.f_sim.write("BUY_LIST\n")
+            for key in self.save_buy_data:
+                self.f_sim.write("\nCODE: %s \n" % (key))
+                for val in self.save_buy_data[key]:
+                    self.f_sim.write("%s\n" % (val))
+
+                    if(not date_buy_sep.get(val[0])):
+                        date_buy_sep[val[0]] = 0
+                    date_buy_sep[val[0]] += int(val[2]) * int(val[3])
+
+            self.f_sim.write("\n\nSELL_LIST\n")
+            for key in self.save_sell_data:
+                self.f_sim.write("\nCODE: %s \n" % (key))
+                for val in self.save_sell_data[key]:
+                    self.f_sim.write("%s\n" % (val))
+                    if (not date_sell_sep.get(val[0])):
+                        date_sell_sep[val[0]] = 0
+                    date_sell_sep[val[0]] += int(val[2]) * int(val[3])
+
+
+            self.f_sim.write("############# Summary End ############ \n\n")
+            self.f_sim.write("----- %s seconds -----\n\n\n" % (time.time() - start_time))
+
+            self.f_sim.write("############# Total Summary ############ \n\n")
+
+            for date_data in sorted(date_buy_sep):
+                buy_amount = 0
+                sell_amount = 0
+                if(date_buy_sep.get(date_data)):
+                    buy_amount = date_buy_sep.get(date_data)
+                if (date_sell_sep.get(date_data)):
+                    sell_amount = date_sell_sep.get(date_data)
+
+                self.f_sim.write("%s : BUY : %d\n" % (date_data, buy_amount))
+                self.f_sim.write("%s : SELL: %d\n\n" % (date_data, sell_amount))
+
+            self.f_sim.write("\n########## Total Summary  End ######### \n\n")
+
+            self.f_sim.flush()
         else:
             print("Need to set simulation checkbox")
             self.log_edit.append("Need to set simulation checkbox")
@@ -2274,6 +2232,14 @@ class StockWindow(QMainWindow):
                         # Input data 저장 (검증용)
                         self.saveInputDataToCSV(stock_code)
 
+                        self.save_buy_amount += buy_order_price * buy_cnt
+
+                        if (self.save_buy_data.get(stock_code)):
+                            self.save_buy_data[stock_code].append([split_data[0], stock_code, buy_order_price, buy_cnt])
+                        else:
+                            self.save_buy_data[stock_code] = [[split_data[0], stock_code, buy_order_price, buy_cnt]]
+
+
                 else:
                     print(str(datetime.today()))
                     print("S================================================================")
@@ -2390,6 +2356,13 @@ class StockWindow(QMainWindow):
                                          "\n" + "============================================================\n")
 
                             self.save_profit += (profit)
+                            self.save_sell_amount += sell_order_price * amount
+
+                            if (self.save_sell_data.get(stock_code)):
+                                self.save_sell_data[stock_code].append([split_data[0], stock_code, sell_order_price, amount])
+                            else:
+                                self.save_sell_data[stock_code] = [[split_data[0], stock_code, sell_order_price, amount]]
+
                             del self.opw00018Data['stocks'][:]
 
                 # count  #stock_list[2]
@@ -2488,7 +2461,7 @@ class StockWindow(QMainWindow):
 
 
         if (not self.code_auto_flag.get(stock_code)):
-            print("Enable code auto flag" )
+            print("Enable code auto flag")
 
             self.code_auto_flag[stock_code] = True
             self.lowest_price[stock_code] = low_price
@@ -2586,9 +2559,9 @@ class StockWindow(QMainWindow):
                 # 진짜 Rule Check
                 if ( #(self.before_stock_data.get(stock_code) < current_price )
                         (bull_power >= threshold_make_amount)
-                        #and (self.trans_cnt.get(stock_code) > threshold_make_cnt)
-                        #and (self.trans_cnt.get(stock_code) >= diff_time)
-                        and (diff_yester_amount > 3)
+                        and (self.trans_cnt.get(stock_code) >= diff_time)
+                        and (diff_yester_amount > 1)
+                        # and (self.trans_cnt.get(stock_code) > threshold_make_cnt)
                         #and (diff_yester_amount <= 5)
                         #and (diff_rotation >= 1)
                         #and (diff_stdev_strong >= 5)
@@ -2660,6 +2633,13 @@ class StockWindow(QMainWindow):
 
                         # Input data 저장 (검증용)
                         #self.saveInputDataToCSV(stock_code)
+
+                        self.save_buy_amount += buy_order_price * buy_cnt
+
+                        if(self.save_buy_data.get(stock_code)):
+                            self.save_buy_data[stock_code].append([split_data[0], stock_code, buy_order_price, buy_cnt])
+                        else:
+                            self.save_buy_data[stock_code] = [[split_data[0], stock_code, buy_order_price, buy_cnt]]
 
                 else:
                     print("SYSTEM_TIME[%s], MAKE_TIME[%s]" % (str(datetime.today()), make_time ))
@@ -2772,6 +2752,14 @@ class StockWindow(QMainWindow):
                                          "\n" + "============================================================\n")
 
                             self.save_profit += (profit)
+                            self.save_sell_amount += sell_order_price * amount
+
+                            if (self.save_sell_data.get(stock_code)):
+                                self.save_sell_data[stock_code].append([split_data[0], stock_code, sell_order_price, amount])
+                            else:
+                                self.save_sell_data[stock_code]= [[split_data[0], stock_code, sell_order_price, amount]]
+
+
                             del self.opw00018Data['stocks'][:]
 
                 # count  #stock_list[2]
