@@ -749,6 +749,9 @@ class StockWindow(QMainWindow):
         self.save_total_profit = 0
         self.save_total_retention = []
 
+        # 추격 매수를 방지 하기 위해 매수 시 주문 가격 저장
+        self.before_buy_price = {}
+        self.before_sell_price = {}
 
 
     #def selectionCombo(self, i):
@@ -867,132 +870,8 @@ class StockWindow(QMainWindow):
                         "950170", "140410", "078020", "086390", "032190"
                      ]
 
-        for f in self.kosdaq_100:
+        for f in self.kospi_100:
             self.set_real_start(f)
-
-    def set_buy_condition_each_code(self):
-        """
-        self.buy_rule = {
-            "033780":[3,1],
-            "010950":[3,3],
-            "068270":[3,8],
-            "086390":[3,9],
-            "034230":[4,1],
-            "046110":[4,1],
-            "017670":[4,2],
-            "048260":[4,2],
-            "006400":[4,4],
-            "015760":[4,4],
-            "051910":[4,4],
-            "067630":[4,5],
-            "005490":[4,6],
-            "089600":[4,7],
-            "108320":[4,7],
-            "006730":[4,8],
-            "130960":[4,9],
-            "045390":[5,1],
-            "086520":[5,1],
-            "000270":[5,3],
-            "023410":[5,4],
-            "035810":[5,5],
-            "055550":[5,7],
-            "022100":[5,9],
-            "038540":[5,9],
-            "122870":[5,10],
-            "003550":[6,2],
-            "086790":[6,2],
-            "043150":[6,2],
-            "086450":[6,2],
-            "090430":[6,3],
-            "033290":[6,3],
-            "178920":[6,6],
-            "039030":[6,7],
-            "183490":[6,7],
-            "000810":[7,3],
-            "007390":[7,3],
-            "215600":[7,3],
-            "090460":[7,3],
-            "036420":[7,4],
-            "112040":[7,4],
-            "237690":[7,4],
-            "207940":[7,5],
-            "028150":[7,7],
-            "025980":[7,8]
-            }
-        """
-        self.buy_rule = {
-            "000030": [3, 3],
-            "000660": [3, 8],
-            "000810": [5, 9],
-            "003410": [7, 5],
-            "004020": [4, 7],
-            "004800": [4, 2],
-            "004990": [4, 7],
-            "005490": [4, 5],
-            "005690": [5, 2],
-            "006040": [6, 2],
-            "006360": [6, 1],
-            "006400": [7, 1],
-            "008770": [3, 5],
-            "008930": [5, 2],
-            "009540": [6, 5],
-            "010130": [5, 6],
-            "012330": [3, 4],
-            "015760": [4, 4],
-            "029780": [4, 2],
-            "033780": [4, 1],
-            "034730": [4, 7],
-            "035420": [3, 10],
-            "051910": [4, 6],
-            "055550": [6, 3],
-            "069960": [3, 7],
-            "079440": [6, 6],
-            "086790": [6, 2],
-            "088350": [2, 7],
-            "090430": [5, 4],
-            "093050": [3, 5],
-            "138930": [5, 1],
-            "207940": [6, 6],
-            "282330": [3, 9],
-            "006730": [4, 4],
-            "007390": [7, 3],
-            "022100": [5, 4],
-            "023410": [4, 6],
-            "025980": [6, 9],
-            "028150": [7, 9],
-            "030190": [5, 1],
-            "033290": [7, 1],
-            "035810": [5, 5],
-            "036420": [5, 7],
-            "038540": [5, 2],
-            "039200": [6, 1],
-            "041510": [7, 3],
-            "043150": [6, 2],
-            "044180": [3, 1],
-            "045390": [5, 1],
-            "058820": [7, 6],
-            "064760": [7, 10],
-            "067630": [4, 8],
-            "073070": [7, 5],
-            "083790": [5, 2],
-            "086390": [3, 3],
-            "086450": [6, 2],
-            "086520": [5, 1],
-            "089600": [4, 6],
-            "090460": [7, 3],
-            "095610": [3, 6],
-            "096530": [3, 7],
-            "108320": [7, 3],
-            "112040": [7, 4],
-            "122870": [5, 3],
-            "130960": [4, 6],
-            "178920": [6, 6],
-            "183490": [6, 7],
-            "200130": [7, 3],
-            "200230": [5, 10],
-            "215600": [7, 3],
-            "237690": [7, 4]
-        }
 
     def btn_total_real_stop_clicked(self):
 
@@ -1106,7 +985,6 @@ class StockWindow(QMainWindow):
         self.commConnect()
         self.getCodeList()
         self.getAccountInfo()
-        self.set_buy_condition_each_code()
         #self.btn_query_account_clicked()
 
     # 종목 코드 받기 함수
@@ -1206,7 +1084,6 @@ class StockWindow(QMainWindow):
 
     def btn_simulation_test_clicked(self):
         print("Simulation Start")
-        self.set_buy_condition_each_code()
         if(self.simulation_checkbox.isChecked()):
 
             # kospi list
@@ -2220,6 +2097,18 @@ class StockWindow(QMainWindow):
                 print("Checking[%s]:cnt[%d],bull_power[%s],diff_time[%d]"
                       % (stock_code, self.trans_cnt[stock_code], str(bull_power), diff_time))
 
+                if self.before_buy_price.get(stock_code):
+                    before_b_price = self.before_buy_price.get(stock_code)
+                else:
+                    # 기존 가격이 없을 때는 조건을 만족하기 위해 최대값으로 설정
+                    before_b_price = 9999999
+
+                if self.before_sell_price.get(stock_code):
+                    before_s_price = self.before_sell_price.get(stock_code)
+                else:
+                    # 기존 가격이 없을 때는 조건을 만족하기 위해 최대값으로 설정
+                    before_s_price = 9999999
+
                 # 진짜 Rule Check
                 #if ((self.trans_cnt.get(stock_code) > threshold_make_cnt) and
                 #        (bull_power >= threshold_make_amount) ):
@@ -2230,7 +2119,10 @@ class StockWindow(QMainWindow):
                 if ((self.trans_cnt.get(stock_code) > threshold_make_cnt)
                         and (bull_power >= threshold_make_amount)
                         and (diff_yester_amount > 1)
-                        and (diff_yester_amount < 5)):
+                        and (diff_yester_amount < 5)
+                        and (before_b_price > current_price)
+                        and (before_s_price > current_price)
+                   ):
 
                     #print("start predict")
                     #predict_flag = self.checkPredict(stock_code, make_time, current_price, split_data[0])
@@ -2261,13 +2153,16 @@ class StockWindow(QMainWindow):
                         self.testAutoBuy(stock_code, 1, str(buy_order_price), str(buy_cnt))
                         self.f_log.write("=================== [%s] ===================\n" % (sys._getframe(1).f_code.co_name))
                         self.f_log.write("매수 주문[%s], 가격:[%d], 수량[%d], CNT[%d], BULL[%f], diff_time[%d], "
-                                         "diff_yester[%f], diff_rotation[%f], make_time[%s]\n"
+                                         "diff_yester[%f], diff_rotation[%f], make_time[%s], before_sell[%d], before_buy[%d]\n"
                                          % (stock_code, buy_order_price, buy_cnt, self.trans_cnt[stock_code], bull_power, diff_time,
-                                            diff_yester_amount, diff_rotation, make_time))
+                                            diff_yester_amount, diff_rotation, make_time, before_s_price, before_b_price))
                         self.f_log.write("||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
 
                         # Input data 저장 (검증용)
                         self.saveInputDataToCSV(stock_code)
+
+                        # 매수 가격 저장
+                        self.before_buy_price[stock_code] = buy_order_price
 
                     else:
                         # Simulation 때는 바로 사는 것으로
@@ -2298,6 +2193,9 @@ class StockWindow(QMainWindow):
 
                         # Input data 저장 (검증용)
                         self.saveInputDataToCSV(stock_code)
+
+                        # 매수 가격 저장
+                        self.before_buy_price[stock_code] = buy_order_price
 
                 else:
                     print(str(datetime.today()))
@@ -2350,18 +2248,34 @@ class StockWindow(QMainWindow):
                     if ( ((bought_price * profit_rate) <= current_price) or
                             ((bought_price * loss_rate) >= current_price)  ):
 
-                        self.log_edit.append("매도[%s]: 현재가[%d] - 매입가[%d] = [%d]" %
-                                             (stock_code,  current_price, bought_price, int(current_price-bought_price)) )
+                        if (bought_price * loss_rate) >= current_price:
+                            self.f_log.write("[손절]=\n")
+                            win_or_lose = "손절"
 
-                        #self.f_log.write("매도[%s]: 현재가[%d] - 매입가[%d] = [%d]\n" %
-                        #                     (stock_code,  current_price, bought_price, int(current_price-bought_price)))
+                            if not self.simulation_checkbox.isChecked():
+                                if stock_code in self.realtimeList:
+                                    self.setRealRemove(self.screenNo, stock_code)
+                                    self.realtimeList.remove(stock_code)
+                                    self.f_log.write("%s 매도[%s] 실시간 데이터 중지\n" % (win_or_lose, stock_code))
+                                else:
+                                    print("등록된 Code 가 아닙니다.")
+
+                        else:
+                            self.f_log.write("[수익]=\n")
+                            win_or_lose = "수익"
+
+                        self.log_edit.append("%s 매도[%s]: 현재가[%d] - 매입가[%d] = [%d]" %
+                                            (win_or_lose, stock_code, current_price, bought_price,
+                                             int(current_price - bought_price)))
+
+                        self.f_log.write("%s 매도[%s]: 현재가[%d] - 매입가[%d] = [%d]\n" %
+                                         (win_or_lose, stock_code, current_price, bought_price,
+                                          int(current_price - bought_price)))
 
                         if ((bought_price * loss_rate) >= current_price):
                             self.f_log.write("[손절]=\n")
                         else:
                             self.f_log.write("[수익]=\n")
-
-                        sell_order_price = 0
 
                         if ((first_sell_price - first_buy_price) > step_price):
                             sell_order_price = first_buy_price + step_price
@@ -2374,22 +2288,32 @@ class StockWindow(QMainWindow):
                             if (not self.sell_order_list.get(str("A" + stock_code))):
                                 self.testAutoBuy(stock_code, 2, str(sell_order_price), stock_list[2])
                                 self.sell_order_list[str("A" + stock_code)] = int(stock_list[2])
-                                self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
-                                                     ", 수량: " + str(stock_list[2]))
-                                self.f_log.write("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
-                                                     ", 수량: " + str(stock_list[2]) + "\n")
+                                self.log_edit.append(
+                                    win_or_lose + " 매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
+                                    ", 수량: " + str(stock_list[2]))
+                                self.f_log.write(
+                                    win_or_lose + " 매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
+                                    ", 수량: " + str(stock_list[2]) + "\n")
                                 self.f_log.write("||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
+
+                                # 매도 가격 저장
+                                self.before_sell_price[stock_code] = sell_order_price
 
                             # 기존에 매도 주문 내역이 있고, 매도 주문을 낼 수 있는 잔량이 있으면 매도 주문
                             elif ((int(stock_list[2]) - self.sell_order_list[str("A" + stock_code)]) > 0):
                                 self.testAutoBuy(stock_code, 2, str(sell_order_price), stock_list[2])
                                 self.sell_order_list[str("A" + stock_code)] = self.sell_order_list[str("A" + stock_code)] +\
                                                                               int(stock_list[2])
-                                self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
-                                                     ", 수량: " + str(stock_list[2]))
-                                self.f_log.write("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
-                                                 ", 수량: " + str(stock_list[2]) + "\n")
+                                self.log_edit.append(
+                                    win_or_lose + " 매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
+                                    ", 수량: " + str(stock_list[2]))
+                                self.f_log.write(
+                                    win_or_lose + " 매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
+                                    ", 수량: " + str(stock_list[2]) + "\n")
                                 self.f_log.write("||||||||||||||||||||||||||||||||||||||||||||||||||||||\n")
+
+                                # 매도 가격 저장
+                                self.before_sell_price[stock_code] = sell_order_price
 
                             # 매도 할 수 있는 잔고가 없을 때
                             else:
@@ -2399,8 +2323,9 @@ class StockWindow(QMainWindow):
                         else:
                             # simulation 때
                             print("Sell[%s]count[%s]" % (stock_code, str(stock_list[2])))
-                            self.log_edit.append("매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
-                                                 ", 수량: " + str(stock_list[2]))
+                            self.log_edit.append(
+                                win_or_lose + " 매도 주문: " + stock_code + ", 가격: " + str(sell_order_price) +
+                                ", 수량: " + str(stock_list[2]))
                             print(self.opw00018Data['stocks'])
                             #self.f_sim.write(self.opw00018Data['stocks'])
 
@@ -2416,6 +2341,9 @@ class StockWindow(QMainWindow):
 
                             self.save_profit += (profit)
                             del self.opw00018Data['stocks'][:]
+
+                            # 매도 가격 저장
+                            self.before_sell_price[stock_code] = sell_order_price
 
                 # count  #stock_list[2]
                 # 매입가 #stock_list[3]
