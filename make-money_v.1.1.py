@@ -1450,7 +1450,7 @@ class StockWindow(QMainWindow):
                         line.append(code)
                         if (self.rule1_flag_checkbox.isChecked() == True):
                             self.checkCondition(line)
-                        if (self.rule2_flag_checkbox.isChecked() == True):
+                        elif (self.rule2_flag_checkbox.isChecked() == True):
                             self.checkCondition_rule_bull(line)
 
 
@@ -1458,7 +1458,7 @@ class StockWindow(QMainWindow):
                     line[0] = "END"
                     if (self.rule1_flag_checkbox.isChecked() == True):
                         self.checkCondition(line)
-                    if (self.rule2_flag_checkbox.isChecked() == True):
+                    elif (self.rule2_flag_checkbox.isChecked() == True):
                         self.checkCondition_rule_bull(line)
                     #self.checkCondition(line)
 
@@ -2692,7 +2692,7 @@ class StockWindow(QMainWindow):
                 if(self.auto_trade_checkbox.isChecked()):
                     if (self.rule1_flag_checkbox.isChecked() == True):
                         self.checkCondition(data)
-                    if (self.rule2_flag_checkbox.isChecked() == True):
+                    elif (self.rule2_flag_checkbox.isChecked() == True):
                         self.checkCondition_rule_bull(data)
 
                 if (self.db_checkbox.isChecked()):
