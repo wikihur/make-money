@@ -1,6 +1,11 @@
-import sys
-from PyQt5.QtWidgets import *
 from PyQt5 import uic
+from PyQt5.QtWidgets import QMainWindow
+from PyQt5.QtWidgets import QApplication
+from PyQt5.QtWidgets import QTableWidgetItem
+from PyQt5.QtWidgets import QPlainTextEdit
+
+from PyQt5.QAxContainer import QAxWidget
+from PyQt5.QtCore import QEventLoop
 
 from KiwoomUtils import *
 
@@ -13,14 +18,233 @@ class MakeMoneyWindow(QMainWindow, form_class):
         super().__init__()
         self.setupUi(self)
 
+        # Create kiwoom instance
+        self.createKiwoomInstance()
+
         # Setup Signal Slot
         self.setSignalSlot()
 
-    def setSignalSlot(self):
-        self.btn_Login.clicked.connect(self.btn_clicked)
+    def createKiwoomInstance(self):
+        """
+        키움 API 를 쓰기 위한 Instance 생성
 
-    def btn_clicked(self):
-        QMessageBox.about(self, "message", "Button Test")
+        :return:
+        """
+        self.kiwoom_api = QAxWidget("KHOPENAPI.KHOpenAPICtrl.1")
+
+    def setSignalSlot(self):
+        """
+        각 Signal Slot 설정
+
+        :return:
+        """
+
+        # Event
+        self.kiwoom_api.OnEventConnect.connect(self.eventConnect)
+        # self.kiwoom_api.OnReceiveTrData.connect(self.receiveTrData)
+        # self.kiwoom_api.OnReceiveRealData.connect(self.receiveRealData)
+        # self.kiwoom_api.OnReceiveChejanData.connect(self.receiveChejanData)
+        # self.kiwoom_api.OnReceiveMsg.connect(self.receiveMsg)
+
+        # Button
+        self.btn_Login.clicked.connect(self.btn_Login_clicked)
+        self.btn_Simulation.clicked.connect(self.btn_Simulation_clicked)
+
+    def eventConnect(self, returnCode):
+        """
+        통신 연결 상태 변경시 이벤트
+
+        returnCode가 0 이면 로그인 성공
+        그 외에는 ReturnCode 클래스 참조.
+
+        :param returnCode: int
+        """
+
+        try:
+            if returnCode == ReturnCode.OP_ERR_NONE:
+                self.server = self.GetServerGubun()
+
+                if len(self.server) == 0 or self.server != "1":
+                    self.plain_Log.appendPlainText("실서버 연결 성공")
+                else:
+                    self.plain_Log.appendPlainText("모의투자서버 연결 성공")
+                    self.getLoginInfo()
+
+            else:
+                self.plain_Log.appendPlainText("연결 끊김: 원인 - " + ReturnCode.CAUSE[returnCode])
+
+        except Exception as error:
+            print(error)
+        finally:
+            # commConnect() 메서드에 의해 생성된 루프를 종료시킨다.
+            # 로그인 후, 통신이 끊길 경우를 대비해서 예외처리함.
+            try:
+               self.loginLoop.exit()
+            except AttributeError:
+                pass
+
+    def GetServerGubun(self):
+        """
+        서버구분 정보를 반환한다.
+        리턴값이 "1"이면 모의투자 서버이고, 그 외에는 실서버(빈 문자열포함).
+
+        :return: string
+        """
+
+        ret = self.kiwoom_api.dynamicCall("KOA_Functions(QString, QString)", "GetServerGubun", "")
+        return ret
+
+    def commConnect(self):
+        """
+        키움 로그인 창 실행
+
+        :return: None
+        """
+        if self.getConnectState():
+            self.plain_Log.appendPlainText("로그인 상태입니다.")
+            return
+
+        self.kiwoom_api.dynamicCall("CommConnect()")
+        self.loginLoop = QEventLoop()
+        self.loginLoop.exec_()
+
+        if self.getConnectState():
+            result = "로그인 성공"
+        else:
+            result = "로그인 실패"
+
+        self.plain_Log.appendPlainText(result)
+
+    def getConnectState(self):
+        """
+        현재 로그인 상태 반환
+
+        :return: int - 0:연결안됨, 1:연결
+        """
+        state = self.kiwoom_api.dynamicCall("GetConnectState()")
+        return state
+
+    def getLoginInfo(self):
+        """
+        로그인 정보를 확인
+
+        ACCOUNT_CNT     : 보유계좌 수 반환
+        ACCLIST | ACCNO : 구분자 ';'로 연결된 보유계좌 목록 반환
+        USER_ID         : 사용자 ID 반환
+        USER_NAME       : 사용자 이름 반환
+        KEY_BSECGB      : 키보드 보안 해지 여부 반환(0:정상, 1:해지)
+        FIREW_SECGB     : 방화벽 설정여부를 반환 (0:미설정, 1:설정, 2:해지)
+        GetServerGubun  : 접속서버 구분을 반환 (1:모의투자, 나머지:실서버)
+
+        :return:
+        """
+        user_id = self.kiwoom_api.dynamicCall("GetLoginInfo(QString)", ["USER_ID"])
+        self.plain_Log.appendPlainText(user_id)
+
+    def receiveTrData(self, screenNo, requestName, trCode, recordName, inquiry,
+                      deprecated1, deprecated2, deprecated3, deprecated4):
+        """
+        TR 수신 이벤트
+
+        조회요청 응답을 받거나 조회데이터를 수신했을 때 호출됩니다.
+        requestName과 trCode는 commRqData()메소드의 매개변수와 매핑되는 값 입니다.
+        조회데이터는 이 이벤트 메서드 내부에서 getCommData() 메서드를 이용해서 얻을 수 있습니다.
+
+        :param screenNo: string - 화면번호(4자리)
+        :param requestName: string - TR 요청명(commRqData() 메소드 호출시 사용된 requestName)
+        :param trCode: string
+        :param recordName: string
+        :param inquiry: string - 조회('0': 남은 데이터 없음, '2': 남은 데이터 있음)
+        :param deprecated1 : unused
+        :param deprecated2 : unused
+        :param deprecated3 : unused
+        :param deprecated4 : unused
+        """
+
+        print("receiveTrData 실행: ", screenNo, requestName, trCode, recordName, inquiry)
+
+
+        """
+        if requestName == "예수금상세현황요청":
+            deposit = self.commGetData(trCode, "", requestName, 0, "예수금")
+            deposit = self.changeFormat(deposit)
+            self.opw00001Data = deposit
+            print("예수금: " + self.opw00001Data)
+            self.log_edit.append(" 예수금: " + self.opw00001Data)
+
+            demand_amount = self.commGetData(trCode, "", requestName, 0, "주문가능금액")
+            demand_amount = self.changeFormat(demand_amount)
+
+            print("주문가능금액: " + demand_amount)
+            self.log_edit.append(" 주문가능금액: " + demand_amount)
+        """
+
+    def setInputValue(self, key, value):
+        """
+        TR 전송에 필요한 값을 설정한다.
+
+        :param key: string - TR에 명시된 input 이름
+        :param value: string - key에 해당하는 값
+        """
+
+        if not (isinstance(key, str) and isinstance(value, str)):
+            raise ParameterTypeError()
+
+        self.kiwoom_api.dynamicCall("SetInputValue(QString, QString)", key, value)
+
+    def commRqData(self, requestName, trCode, inquiry, screenNo):
+        """
+        키움서버에 TR 요청을 한다.
+
+        조회요청메서드이며 빈번하게 조회요청시, 시세과부하 에러값 -200이 리턴된다.
+
+        :param requestName: string - TR 요청명(사용자 정의)
+        :param trCode: string
+        :param inquiry: int - 조회(0: 조회, 2: 남은 데이터 이어서 요청)
+        :param screenNo: string - 화면번호(4자리)
+        """
+
+        if not self.getConnectState():
+            raise KiwoomConnectError()
+
+        if not (isinstance(requestName, str)
+                and isinstance(trCode, str)
+                and isinstance(inquiry, int)
+                and isinstance(screenNo, str)):
+            raise ParameterTypeError()
+
+        returnCode = self.kiwoom_api.dynamicCall("CommRqData(QString, QString, int, QString)", requestName, trCode,
+                                                 inquiry,
+                                                 screenNo)
+
+        if returnCode != ReturnCode.OP_ERR_NONE:
+            raise KiwoomProcessingError("commRqData(): " + ReturnCode.CAUSE[returnCode])
+
+        # 루프 생성: receiveTrData() 메서드에서 루프를 종료시킨다.
+        # self.requestLoop = QEventLoop()
+        # self.requestLoop.exec_()
+
+
+    def btn_Login_clicked(self):
+        """
+        로그인 버튼 이벤트
+
+        :return:
+        """
+        self.commConnect()
+
+    def btn_Simulation_clicked(self):
+
+        if not self.getConnectState():
+            self.plain_Log.appendPlainText("로그인 후 사용하세요.")
+            return
+
+        self.setInputValue("계좌번호", "8115335911")
+        self.setInputValue("비밀번호", "0000")
+        self.setInputValue("비밀번호입력매체구분", "00")
+        self.setInputValue("조회구분", "2")
+
+        self.commRqData("예수금상세현황요청", "opw00001", 0, "0101")
 
 
 if __name__ == "__main__":
